@@ -1,0 +1,28 @@
+# Données réelles — ne jamais committer
+samples/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Backend (Maven)
+backend/target/
+*.class
+*.log
+
+# Frontend (Node / Vite)
+node_modules/
+frontend/dist/
+frontend/coverage/
+*.tsbuildinfo
+
+# IDE / OS
+.idea/
+*.iml
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Graphify
+graphify-out/
