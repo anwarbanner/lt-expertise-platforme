@@ -1,0 +1,338 @@
+@startuml modele-donnees
+title LT Expertise — Modèle de données v1 (à valider)
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam shadowing false
+hide empty methods
+left to right direction
+
+' montant = numeric(12,2) / BigDecimal ; pct = numeric(5,2) ; heures = numeric(7,2)
+
+package "Dossier" {
+  class RapportExpertise <<Entity>> {
+    id : Long <<PK>>
+    numeroRapport : String(30) <<unique>>
+    natureRapport : NatureRapport
+    typeProcedure : TypeProcedure
+    statut : StatutDossier
+    cabinet : String(100)
+    expert : String(100)
+    compagnie : String(100)
+    refSinistre : String(30)
+    dateSinistre : LocalDate
+    dateMission : LocalDate
+    dateExpertise : LocalDate
+    dateAvantReparation : LocalDate
+    dateEnCoursTravaux : LocalDate
+    dateApresTravaux : LocalDate
+    dateRapport : LocalDate
+    lieuRapport : String(60)
+    natureContrat : NatureContrat
+    natureEvenement : NatureEvenement
+    zoneChoc : Short {1..8}
+    reparateur : String(150)
+    accordReparateur : Boolean
+    totalMoHt / Tva / Ttc : montant
+    totalFournituresHt / Tva / Ttc : montant
+    totalGeneralHt / Tva / Ttc : montant
+    vetusteTtc : montant
+    depannage : montant
+    immobilisation : montant
+    typeReforme : TypeReforme
+    epavisteNom : String(100)
+    epavisteVille : String(60)
+    valeurNeuf : montant
+    valeurAssuree : montant
+    valeurVenale : montant
+    valeurEpave : montant
+    tvaRecuperable : Boolean
+    montantIndemnisation : montant
+    montantLettres : String(300)
+    commentaire : Text
+    gabaritVersion : String(40)
+    valideLe : OffsetDateTime
+    creeLe / modifieLe : OffsetDateTime
+    version : Integer
+  }
+
+  class Partie <<Entity>> {
+    id : Long <<PK>>
+    typePartie : TypePartie
+    nomPrenom : String(150)
+    vehiculeLibelle : String(100)
+    immatriculation : String(20)
+    compagnie : String(100)
+    numeroPolice : String(30)
+    intermediaire : String(150)
+    --
+    unique (rapport, typePartie)
+  }
+
+  class Vehicule <<Entity>> {
+    id : Long <<PK>>
+    marque : String(50)
+    modele : String(80)
+    typeMine : String(80)
+    immatriculation : String(20)
+    numeroSerie : String(30)
+    energie : Energie
+    kilometrage : Integer
+    kilometrageNonEstimable : Boolean
+    puissanceFiscale : Short
+    dateMiseCirculation : LocalDate
+    etatGeneral : String(50)
+    usurePneuAvg / Avd / Arg / Ard : pct
+  }
+
+  class EvaluationMainOeuvre <<Entity>> {
+    id : Long <<PK>>
+    poste : PosteMainOeuvre
+    nombreHeures : heures
+    tauxHoraire : montant
+    montantHt : montant
+    montantTva : montant
+    montantTtc : montant
+    --
+    unique (rapport, poste)
+  }
+
+  class Fourniture <<Entity>> {
+    id : Long <<PK>>
+    categorie : CategorieFourniture
+    montantHt : montant
+    montantTva : montant
+    montantTtc : montant
+    --
+    unique (rapport, categorie)
+  }
+
+  class LigneDetail <<Entity>> {
+    id : Long <<PK>>
+    ordre : Short
+    zoneLibelle : String(60)
+    zoneChoc : Short
+    famille : FamilleTravaux
+    quantite : numeric(8,2)
+    designation : String(150)
+    typePiece : TypePiece [0..1]
+    prixUnitaire : montant
+    vetustePct : pct
+    tvaPct : pct
+    totalFourniture : montant
+    operation : TypeOperation
+    nombreHeures : heures
+    tarifHoraire : montant
+    montantMoTtc : montant
+    --
+    unique (rapport, ordre)
+  }
+
+  class ValeurCommentaire <<Entity>> <<proposé>> {
+    id : Long <<PK>>
+    cle : CleCommentaire
+    valeurTexte : String(300)
+    valeurMontant : montant
+    valeurDate : LocalDate
+    --
+    unique (rapport, cle)
+  }
+
+  class ResultatControle <<Entity>> <<proposé>> {
+    id : Long <<PK>>
+    type : TypeControle
+    code : String(60)
+    libelle : String(200)
+    champ : String(100)
+    valeurAttendue : montant
+    valeurObtenue : montant
+    conforme : Boolean
+    executeLe : OffsetDateTime
+  }
+}
+
+package "Import & sécurité" {
+  class ImportFichier <<Entity>> {
+    id : Long <<PK>>
+    nomFichier : String(255)
+    hashSha256 : char(64) <<unique>>
+    tailleOctets : Long
+    nombrePages : Short
+    bucket : String(63)
+    cleObjet : String(500) <<unique>>
+    versionObjet : String(100)
+    typeMime : String(100)
+    gabaritDetecte : String(40)
+    statutImport : StatutImport
+    motifRefus : Text
+    lotImport : UUID
+    importeLe : OffsetDateTime
+    retraiteLe : OffsetDateTime
+  }
+
+  class Utilisateur <<Entity>> {
+    id : Long <<PK>>
+    identifiant : String(50) <<unique>>
+    nom : String(80)
+    prenom : String(80)
+    email : String(150) <<unique>>
+    motDePasseHash : String(100)
+    role : Role
+    actif : Boolean
+    tentativesEchouees : Short
+    verrouilleJusquA : OffsetDateTime
+    derniereConnexion : OffsetDateTime
+  }
+
+  class JournalAudit <<Entity>> <<append-only>> {
+    id : Long <<PK>>
+    horodatage : OffsetDateTime
+    identifiantUtilisateur : String(50)
+    action : ActionAudit
+    typeEntite : String(50)
+    entiteId : Long
+    champ : String(100)
+    ancienneValeur : Text
+    nouvelleValeur : Text
+    details : jsonb
+    adresseIp : String(45)
+  }
+}
+
+RapportExpertise "1" *-- "0..2" Partie
+RapportExpertise "1" *-- "0..1" Vehicule
+RapportExpertise "1" *-- "0..7" EvaluationMainOeuvre
+RapportExpertise "1" *-- "0..4" Fourniture
+RapportExpertise "1" *-- "0..*" LigneDetail
+RapportExpertise "1" *-- "0..*" ValeurCommentaire
+RapportExpertise "1" *-- "0..*" ResultatControle
+ImportFichier "0..1" -- "0..1" RapportExpertise : PDF original (P1) >
+Utilisateur "1" -- "0..*" ImportFichier : importe >
+Utilisateur "0..1" -- "0..*" RapportExpertise : valide (P3) >
+Utilisateur "0..1" -- "0..*" JournalAudit : auteur >
+RapportExpertise "0..1" -- "0..*" JournalAudit : historique >
+
+package "Énumérations" {
+  enum StatutDossier {
+    EN_COURS
+    IMPORTE
+    A_COMPLETER
+    A_VERIFIER
+    VALIDE
+    ARCHIVE
+  }
+  enum TypeProcedure {
+    PROCEDURE_CLASSIQUE
+    PRISE_EN_CHARGE_ET_PLUS_QUE_20000
+    PLUS_DE_20000
+    PRISE_EN_CHARGE
+    WAFA_24
+  }
+  enum TypePiece {
+    ORIGINE (O)
+    ADAPTABLE (A)
+    REEMPLOI (R)
+  }
+  enum NatureRapport {
+    DEFINITIF
+    NON_DEFINITIF
+    REFORME
+  }
+  enum PosteMainOeuvre {
+    MO_1_TOLERIE
+    MO_2_TOLERIE
+    MO_3_TOLERIE
+    MO_PEINTURE
+    MO_1_MECANIQUE
+    MO_2_MECANIQUE
+    MO_3_MECANIQUE
+  }
+  enum FamilleTravaux {
+    TOLERIE
+    PEINTURE
+    MECANIQUE
+  }
+  enum CategorieFourniture {
+    PIECES
+    INGREDIENT_PEINTURE
+    PETITE_FOURNITURE
+    AUTRES
+  }
+  enum TypeOperation {
+    ECHANGE
+    REPARATION
+  }
+  enum NatureContrat {
+    RC
+    ASSURANCE_DOMMAGE
+  }
+  enum NatureEvenement {
+    CIRCULATION_HORS_STATIONNEMENT
+    STATIONNEMENT
+    AUTRE
+  }
+  enum TypeReforme {
+    ECONOMIQUE
+    TECHNIQUE
+  }
+  enum Energie {
+    ESSENCE
+    DIESEL
+    HYBRIDE
+    ELECTRIQUE
+    AUTRE
+  }
+  enum TypePartie {
+    ASSURE
+    ADVERSAIRE
+  }
+  enum Role {
+    ADMINISTRATEUR
+    GESTIONNAIRE
+    CONSULTATION
+  }
+  enum StatutImport {
+    ACCEPTE
+    REFUSE_GABARIT
+    REFUSE_DOUBLON_NUMERO
+    ERREUR_LECTURE
+  }
+  enum ActionAudit {
+    CONNEXION
+    ECHEC_CONNEXION
+    IMPORT
+    IMPORT_REFUSE
+    CREATION
+    MODIFICATION
+    CHANGEMENT_STATUT
+    VALIDATION
+    ARCHIVAGE
+    EXPORT_PDF
+    EXPORT_EXCEL
+    GESTION_UTILISATEUR
+  }
+  enum TypeControle {
+    COHERENCE
+    CHAMP_MANQUANT
+  }
+  enum CleCommentaire {
+    VALEUR_NEUF_CATALOGUE
+    VALEUR_VENALE_FMA
+    MONTANT_DEVIS
+    ESTIMATION_SANS_DEVIS
+    CADRE_EXPERTISE
+    LOCALISATION_CHOC
+    EXPERT_CONFRERE
+    MODE_EXPERTISE_CONFRERE
+    DATE_ACCORD
+    DIVERGENCE_USAGE
+  }
+}
+
+note bottom of RapportExpertise
+  P2 : numeroRapport unique ; ImportFichier.hashSha256 unique
+  P3 : statut = VALIDE => validePar (GESTIONNAIRE) et valideLe non nuls
+  P4 : DEFINITIF => totalGeneralTtc - vetusteTtc = montantIndemnisation
+       REFORME   => valeurVenale - valeurEpave = montantIndemnisation
+  P5 : tvaRecuperable => indemnisation sur base HT, sinon TTC
+end note
+@enduml

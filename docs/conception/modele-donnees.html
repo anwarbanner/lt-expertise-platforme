@@ -1,0 +1,591 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Modèle de données LT Expertise</title>
+<style>
+  :root { --bg:#f7f7f5; --fg:#1f2328; --muted:#5b6370; --card:#fff; --line:#d8dbe0; --accent:#1d4ed8; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#16181d; --fg:#e6e8eb; --muted:#9aa3ad; --card:#1f2228; --line:#343841; --accent:#7aa2ff; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font:15px/1.5 system-ui, "Segoe UI", sans-serif; background:var(--bg); color:var(--fg); }
+  header { padding:16px 20px; border-bottom:1px solid var(--line); }
+  h1 { margin:0 0 4px; font-size:20px; }
+  header p { margin:0; color:var(--muted); font-size:13px; }
+  nav { display:flex; gap:8px; padding:12px 20px; flex-wrap:wrap; align-items:center; }
+  nav button { border:1px solid var(--line); background:var(--card); color:var(--fg); padding:6px 12px; border-radius:6px; cursor:pointer; font:inherit; font-size:14px; }
+  nav button[aria-selected="true"] { border-color:var(--accent); color:var(--accent); font-weight:600; }
+  nav .zoom { margin-left:auto; display:flex; gap:6px; align-items:center; color:var(--muted); font-size:13px; }
+  section { display:none; padding:0 20px 24px; }
+  section.actif { display:block; }
+  .cadre { background:var(--card); border:1px solid var(--line); border-radius:8px; overflow:auto; padding:16px; max-height:calc(100vh - 160px); }
+  .cadre .mermaid { transform-origin:0 0; width:max-content; }
+  .legende { color:var(--muted); font-size:13px; margin:8px 0 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Modèle de données — v1 à valider</h1>
+  <p>Détails, contraintes et questions ouvertes : docs/conception/modele-donnees.md · montant = numeric(12,2) / BigDecimal · pct = numeric(5,2) · heures = numeric(7,2)</p>
+</header>
+<nav role="tablist">
+  <button role="tab" aria-selected="true" data-cible="uml">Diagramme UML (classes)</button>
+  <button role="tab" aria-selected="false" data-cible="er">Modèle physique (tables)</button>
+  <button role="tab" aria-selected="false" data-cible="enum">Énumérations</button>
+  <span class="zoom"><button id="moins">−</button><span id="niveau">100 %</span><button id="plus">+</button></span>
+</nav>
+
+<section id="uml" class="actif">
+  <p class="legende">◆ composition : la ligne est supprimée avec le dossier. Les classes marquées «proposé» ne figuraient pas dans la liste demandée.</p>
+  <div class="cadre"><pre class="mermaid">
+classDiagram
+  direction LR
+  class RapportExpertise {
+    <<Entity>>
+    Long id PK
+    String numeroRapport UNIQUE
+    NatureRapport natureRapport
+    TypeProcedure typeProcedure
+    StatutDossier statut
+    String expert
+    String compagnie
+    String refSinistre
+    LocalDate dateSinistre
+    LocalDate dateMission
+    LocalDate dateExpertise
+    LocalDate dateAvantReparation
+    LocalDate dateEnCoursTravaux
+    LocalDate dateApresTravaux
+    LocalDate dateRapport
+    NatureContrat natureContrat
+    NatureEvenement natureEvenement
+    Short zoneChoc 1a8
+    String reparateur
+    Boolean accordReparateur
+    montant totalMoHt_Tva_Ttc
+    montant totalFournituresHt_Tva_Ttc
+    montant totalGeneralHt_Tva_Ttc
+    montant vetusteTtc
+    montant depannage
+    montant immobilisation
+    TypeReforme typeReforme
+    String epavisteNom
+    montant valeurNeuf
+    montant valeurAssuree
+    montant valeurVenale
+    montant valeurEpave
+    Boolean tvaRecuperable
+    montant montantIndemnisation
+    String montantLettres
+    Text commentaire
+    String gabaritVersion
+    OffsetDateTime valideLe
+    Integer version
+  }
+  class Partie {
+    <<Entity>>
+    Long id PK
+    TypePartie typePartie
+    String nomPrenom
+    String vehiculeLibelle
+    String immatriculation
+    String compagnie
+    String numeroPolice
+    String intermediaire
+  }
+  class Vehicule {
+    <<Entity>>
+    Long id PK
+    String marque
+    String modele
+    String typeMine
+    String immatriculation
+    String numeroSerie
+    Energie energie
+    Integer kilometrage
+    Boolean kilometrageNonEstimable
+    Short puissanceFiscale
+    LocalDate dateMiseCirculation
+    String etatGeneral
+    pct usurePneuAvg_Avd_Arg_Ard
+  }
+  class EvaluationMainOeuvre {
+    <<Entity>>
+    Long id PK
+    PosteMainOeuvre poste
+    heures nombreHeures
+    montant tauxHoraire
+    montant montantHt
+    montant montantTva
+    montant montantTtc
+  }
+  class Fourniture {
+    <<Entity>>
+    Long id PK
+    CategorieFourniture categorie
+    montant montantHt
+    montant montantTva
+    montant montantTtc
+  }
+  class LigneDetail {
+    <<Entity>>
+    Long id PK
+    Short ordre
+    String zoneLibelle
+    Short zoneChoc
+    FamilleTravaux famille
+    BigDecimal quantite
+    String designation
+    TypePiece typePiece
+    montant prixUnitaire
+    pct vetustePct
+    pct tvaPct
+    montant totalFourniture
+    TypeOperation operation
+    heures nombreHeures
+    montant tarifHoraire
+    montant montantMoTtc
+  }
+  class ValeurCommentaire {
+    <<proposé>>
+    Long id PK
+    CleCommentaire cle
+    String valeurTexte
+    montant valeurMontant
+    LocalDate valeurDate
+  }
+  class ResultatControle {
+    <<proposé>>
+    Long id PK
+    TypeControle type
+    String code
+    String champ
+    montant valeurAttendue
+    montant valeurObtenue
+    Boolean conforme
+  }
+  class ImportFichier {
+    <<Entity>>
+    Long id PK
+    String nomFichier
+    char64 hashSha256 UNIQUE
+    Long tailleOctets
+    String bucket
+    String cleObjet UNIQUE
+    String versionObjet
+    String gabaritDetecte
+    StatutImport statutImport
+    Text motifRefus
+    UUID lotImport
+    OffsetDateTime importeLe
+  }
+  class Utilisateur {
+    <<Entity>>
+    Long id PK
+    String identifiant UNIQUE
+    String nom
+    String prenom
+    String email UNIQUE
+    String motDePasseHash
+    Role role
+    Boolean actif
+    Short tentativesEchouees
+    OffsetDateTime verrouilleJusquA
+  }
+  class JournalAudit {
+    <<append-only>>
+    Long id PK
+    OffsetDateTime horodatage
+    String identifiantUtilisateur
+    ActionAudit action
+    String typeEntite
+    Long entiteId
+    String champ
+    Text ancienneValeur
+    Text nouvelleValeur
+    jsonb details
+  }
+  RapportExpertise "1" *-- "0..2" Partie : parties
+  RapportExpertise "1" *-- "0..1" Vehicule : vehicule
+  RapportExpertise "1" *-- "0..7" EvaluationMainOeuvre : postes MO
+  RapportExpertise "1" *-- "0..4" Fourniture : fournitures
+  RapportExpertise "1" *-- "0..*" LigneDetail : detail page 2
+  RapportExpertise "1" *-- "0..*" ValeurCommentaire : F12
+  RapportExpertise "1" *-- "0..*" ResultatControle : P4
+  ImportFichier "0..1" -- "0..1" RapportExpertise : PDF original P1
+  Utilisateur "1" -- "0..*" ImportFichier : importe
+  Utilisateur "0..1" -- "0..*" RapportExpertise : valide P3
+  Utilisateur "0..1" -- "0..*" JournalAudit : auteur
+  RapportExpertise "0..1" -- "0..*" JournalAudit : historique
+  </pre></div>
+</section>
+
+<section id="er">
+  <p class="legende">PK clé primaire · FK clé étrangère · UK unique. Les contraintes CHECK sont listées dans le fichier .md.</p>
+  <div class="cadre"><pre class="mermaid">
+erDiagram
+    UTILISATEUR ||--o{ IMPORT_FICHIER : "importe"
+    UTILISATEUR |o--o{ RAPPORT_EXPERTISE : "valide (P3)"
+    UTILISATEUR |o--o{ JOURNAL_AUDIT : "auteur"
+    IMPORT_FICHIER |o--o| RAPPORT_EXPERTISE : "PDF original (P1)"
+    RAPPORT_EXPERTISE ||--o{ PARTIE : "0..2"
+    RAPPORT_EXPERTISE ||--o| VEHICULE : "1-1"
+    RAPPORT_EXPERTISE ||--o{ EVALUATION_MAIN_OEUVRE : "7 postes"
+    RAPPORT_EXPERTISE ||--o{ FOURNITURE : "4 categories"
+    RAPPORT_EXPERTISE ||--o{ LIGNE_DETAIL : "page 2"
+    RAPPORT_EXPERTISE ||--o{ VALEUR_COMMENTAIRE : "F12"
+    RAPPORT_EXPERTISE ||--o{ RESULTAT_CONTROLE : "P4"
+    RAPPORT_EXPERTISE |o--o{ JOURNAL_AUDIT : "historique"
+
+    RAPPORT_EXPERTISE {
+        id id PK
+        varchar(30) numero_rapport UK
+        NatureRapport nature_rapport
+        TypeProcedure type_procedure
+        StatutDossier statut
+        varchar(100) expert
+        varchar(100) compagnie
+        varchar(30) ref_sinistre
+        date date_sinistre
+        date date_mission
+        date date_expertise
+        date date_avant_reparation
+        date date_en_cours_travaux
+        date date_apres_travaux
+        date date_rapport
+        NatureContrat nature_contrat
+        NatureEvenement nature_evenement
+        smallint zone_choc "1 a 8"
+        varchar(150) reparateur
+        boolean accord_reparateur
+        montant total_mo_ht_tva_ttc "x3"
+        montant total_fournitures_ht_tva_ttc "x3"
+        montant total_general_ht_tva_ttc "x3"
+        montant vetuste_ttc
+        montant depannage
+        montant immobilisation
+        TypeReforme type_reforme
+        varchar(100) epaviste_nom
+        montant valeur_neuf
+        montant valeur_assuree
+        montant valeur_venale
+        montant valeur_epave
+        boolean tva_recuperable
+        montant montant_indemnisation
+        varchar(300) montant_lettres
+        text commentaire
+        varchar(40) gabarit_version
+        id import_fichier_id FK,UK
+        id valide_par FK
+        timestamptz valide_le
+    }
+    PARTIE {
+        id id PK
+        id rapport_id FK
+        TypePartie type_partie "UK avec rapport_id"
+        varchar(150) nom_prenom
+        varchar(100) vehicule_libelle
+        varchar(20) immatriculation
+        varchar(100) compagnie
+        varchar(30) numero_police
+        varchar(150) intermediaire
+    }
+    VEHICULE {
+        id id PK
+        id rapport_id FK,UK
+        varchar(50) marque
+        varchar(80) modele
+        varchar(80) type_mine
+        varchar(20) immatriculation
+        varchar(30) numero_serie
+        Energie energie
+        integer kilometrage
+        boolean kilometrage_non_estimable
+        smallint puissance_fiscale
+        date date_mise_circulation
+        varchar(50) etat_general
+        pct usure_pneu_avg
+        pct usure_pneu_avd
+        pct usure_pneu_arg
+        pct usure_pneu_ard
+    }
+    EVALUATION_MAIN_OEUVRE {
+        id id PK
+        id rapport_id FK
+        PosteMainOeuvre poste "UK avec rapport_id"
+        heures nombre_heures
+        montant taux_horaire
+        montant montant_ht
+        montant montant_tva
+        montant montant_ttc
+    }
+    FOURNITURE {
+        id id PK
+        id rapport_id FK
+        CategorieFourniture categorie "UK avec rapport_id"
+        montant montant_ht
+        montant montant_tva
+        montant montant_ttc
+    }
+    LIGNE_DETAIL {
+        id id PK
+        id rapport_id FK
+        smallint ordre "UK avec rapport_id"
+        varchar(60) zone_libelle
+        smallint zone_choc
+        FamilleTravaux famille
+        numeric quantite
+        varchar(150) designation
+        TypePiece type_piece "O A R ou null"
+        montant prix_unitaire
+        pct vetuste_pct
+        pct tva_pct
+        montant total_fourniture
+        TypeOperation operation
+        heures nombre_heures
+        montant tarif_horaire
+        montant montant_mo_ttc
+    }
+    IMPORT_FICHIER {
+        id id PK
+        varchar(255) nom_fichier
+        char(64) hash_sha256 UK "SHA-256"
+        bigint taille_octets
+        smallint nombre_pages
+        varchar(63) bucket "MinIO"
+        varchar(500) cle_objet UK
+        varchar(100) version_objet
+        varchar(40) gabarit_detecte
+        StatutImport statut_import
+        text motif_refus
+        uuid lot_import
+        id importe_par FK
+        timestamptz importe_le
+    }
+    UTILISATEUR {
+        id id PK
+        varchar(50) identifiant UK
+        varchar(80) nom
+        varchar(80) prenom
+        varchar(150) email UK
+        varchar(100) mot_de_passe_hash
+        Role role
+        boolean actif
+        smallint tentatives_echouees
+        timestamptz verrouille_jusqu_a
+    }
+    JOURNAL_AUDIT {
+        id id PK
+        timestamptz horodatage
+        id utilisateur_id FK
+        varchar(50) identifiant_utilisateur
+        ActionAudit action
+        varchar(50) type_entite
+        bigint entite_id
+        id rapport_id FK
+        varchar(100) champ
+        text ancienne_valeur
+        text nouvelle_valeur
+        jsonb details
+    }
+    VALEUR_COMMENTAIRE {
+        id id PK
+        id rapport_id FK
+        CleCommentaire cle "UK avec rapport_id"
+        varchar(300) valeur_texte
+        montant valeur_montant
+        date valeur_date
+    }
+    RESULTAT_CONTROLE {
+        id id PK
+        id rapport_id FK
+        TypeControle type
+        varchar(60) code
+        varchar(100) champ
+        montant valeur_attendue
+        montant valeur_obtenue
+        boolean conforme
+    }
+  </pre></div>
+</section>
+
+<section id="enum">
+  <p class="legende">Stockées en varchar + CHECK, mappées en enum Java avec @Enumerated(STRING).</p>
+  <div class="cadre"><pre class="mermaid">
+classDiagram
+  direction LR
+  class StatutDossier {
+    <<enumeration>>
+    EN_COURS
+    IMPORTE
+    A_COMPLETER
+    A_VERIFIER
+    VALIDE
+    ARCHIVE
+  }
+  class TypeProcedure {
+    <<enumeration>>
+    PROCEDURE_CLASSIQUE
+    PRISE_EN_CHARGE_ET_PLUS_QUE_20000
+    PLUS_DE_20000
+    PRISE_EN_CHARGE
+    WAFA_24
+  }
+  class TypePiece {
+    <<enumeration>>
+    ORIGINE_O
+    ADAPTABLE_A
+    REEMPLOI_R
+  }
+  class NatureRapport {
+    <<enumeration>>
+    DEFINITIF
+    NON_DEFINITIF
+    REFORME
+  }
+  class PosteMainOeuvre {
+    <<enumeration>>
+    MO_1_TOLERIE
+    MO_2_TOLERIE
+    MO_3_TOLERIE
+    MO_PEINTURE
+    MO_1_MECANIQUE
+    MO_2_MECANIQUE
+    MO_3_MECANIQUE
+  }
+  class FamilleTravaux {
+    <<enumeration>>
+    TOLERIE
+    PEINTURE
+    MECANIQUE
+  }
+  class CategorieFourniture {
+    <<enumeration>>
+    PIECES
+    INGREDIENT_PEINTURE
+    PETITE_FOURNITURE
+    AUTRES
+  }
+  class TypeOperation {
+    <<enumeration>>
+    ECHANGE
+    REPARATION
+  }
+  class NatureContrat {
+    <<enumeration>>
+    RC
+    ASSURANCE_DOMMAGE
+  }
+  class NatureEvenement {
+    <<enumeration>>
+    CIRCULATION_HORS_STATIONNEMENT
+    STATIONNEMENT
+    AUTRE
+  }
+  class TypeReforme {
+    <<enumeration>>
+    ECONOMIQUE
+    TECHNIQUE
+  }
+  class Energie {
+    <<enumeration>>
+    ESSENCE
+    DIESEL
+    HYBRIDE
+    ELECTRIQUE
+    AUTRE
+  }
+  class TypePartie {
+    <<enumeration>>
+    ASSURE
+    ADVERSAIRE
+  }
+  class Role {
+    <<enumeration>>
+    ADMINISTRATEUR
+    GESTIONNAIRE
+    CONSULTATION
+  }
+  class StatutImport {
+    <<enumeration>>
+    ACCEPTE
+    REFUSE_GABARIT
+    REFUSE_DOUBLON_NUMERO
+    ERREUR_LECTURE
+  }
+  class ActionAudit {
+    <<enumeration>>
+    CONNEXION
+    ECHEC_CONNEXION
+    IMPORT
+    IMPORT_REFUSE
+    CREATION
+    MODIFICATION
+    CHANGEMENT_STATUT
+    VALIDATION
+    ARCHIVAGE
+    EXPORT_PDF
+    EXPORT_EXCEL
+    GESTION_UTILISATEUR
+  }
+  class TypeControle {
+    <<enumeration>>
+    COHERENCE
+    CHAMP_MANQUANT
+  }
+  class CleCommentaire {
+    <<enumeration>>
+    VALEUR_NEUF_CATALOGUE
+    VALEUR_VENALE_FMA
+    MONTANT_DEVIS
+    ESTIMATION_SANS_DEVIS
+    CADRE_EXPERTISE
+    LOCALISATION_CHOC
+    EXPERT_CONFRERE
+    MODE_EXPERTISE_CONFRERE
+    DATE_ACCORD
+    DIVERGENCE_USAGE
+  }
+  class ZoneChoc {
+    <<enumeration>>
+    Z1_AVANT_LATERAL_GAUCHE
+    Z2_AVANT_LATERAL_DROIT
+    Z3_CENTRAL_LATERAL_GAUCHE
+    Z4_CENTRAL_LATERAL_DROIT
+    Z5_ARRIERE_LATERAL_GAUCHE
+    Z6_ARRIERE_LATERAL_DROIT
+    Z7_ARRIERE
+    Z8_AVANT
+  }
+  </pre></div>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<script>
+  const sombre = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  mermaid.initialize({ startOnLoad: false, theme: sombre ? "dark" : "default", securityLevel: "strict",
+    er: { useMaxWidth: false }, class: { useMaxWidth: false } });
+
+  const rendus = new Set();
+  async function afficher(id) {
+    document.querySelectorAll("section").forEach(s => s.classList.toggle("actif", s.id === id));
+    document.querySelectorAll("nav [role=tab]").forEach(b => b.setAttribute("aria-selected", b.dataset.cible === id));
+    if (!rendus.has(id)) { rendus.add(id); await mermaid.run({ nodes: document.querySelectorAll(`#${id} .mermaid`) }); }
+    appliquerZoom();
+  }
+  document.querySelectorAll("nav [role=tab]").forEach(b => b.addEventListener("click", () => afficher(b.dataset.cible)));
+
+  let zoom = 1;
+  function appliquerZoom() {
+    document.querySelectorAll(".mermaid").forEach(m => m.style.transform = `scale(${zoom})`);
+    document.getElementById("niveau").textContent = Math.round(zoom * 100) + " %";
+  }
+  document.getElementById("plus").onclick = () => { zoom = Math.min(3, zoom + 0.1); appliquerZoom(); };
+  document.getElementById("moins").onclick = () => { zoom = Math.max(0.3, zoom - 0.1); appliquerZoom(); };
+
+  afficher("uml");
+</script>
+</body>
+</html>
