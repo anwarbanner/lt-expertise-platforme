@@ -218,6 +218,13 @@ P4 page 1 = page 2 : Σ total_fourniture = total_fournitures_ttc ; Σ montant_mo
 - Ordre d'écriture à l'import : objet MinIO d'abord, puis ligne `import_fichier`. Une tâche de nettoyage supprime les objets sans ligne en base, en cas d'échec entre les deux.
 - L'accès passe uniquement par l'API Spring (droits vérifiés, P9). MinIO n'est jamais exposé aux postes clients.
 - Sauvegarde quotidienne : `pg_dump` + `mc mirror` du bucket vers le disque séparé, conservée 30 jours.
+- Verrou par objet : *legal hold* (sans durée, levable seulement par un administrateur MinIO) plutôt qu'une rétention à durée fixe.
+- ⚠️ Image Docker : le dépôt Docker Hub `minio/minio` a été supprimé par MinIO (édition communautaire en source seule).
+  L'image utilisée est une copie en cache retaguée `lt-expertise/minio:RELEASE.2025-09-07T16-13-09Z`.
+  Source durable à décider avant la mise en service (voir question 10).
+
+Implémenté (22/10/2026) : `ServiceImport`, `StockageMinio`, `POST /api/imports`, `GET /api/imports[?refuses=true]`,
+`GET /api/imports/{id}/pdf`. Gabarit : au moins 2 pages (un échantillon réel en compte 3).
 
 ### 2.8 Utilisateur — `utilisateur`
 
@@ -471,3 +478,4 @@ erDiagram
 7. ✅ **PDF** : stockés dans MinIO local (voir 2.7), référence + hash en base.
 8. **Qualité des données** vues : date sinistre `23/12/1925` (B1), kilométrage/énergie décalés par la mise en page (« GLC220 », « CLIO » à la place du km/énergie), n° police masqué. On ajoute un contrôle « dates cohérentes » (sinistre ≤ mission ≤ expertise ≤ rapport) ?
 9. **Compagnie / réparateur / expert** : texte libre (recommandé pour la v1) ou référentiels dédiés pour fiabiliser les statistiques ?
+10. **Image MinIO durable** : construire l'image depuis les sources MinIO (AGPL), utiliser un fork maintenu, ou garder l'image en cache archivée (`docker save`) pour l'installation chez LT Expertise ?

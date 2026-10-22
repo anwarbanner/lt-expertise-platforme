@@ -19,3 +19,11 @@ Lire docs/cahier-des-charges.md avant toute tâche fonctionnelle.
 - Ne jamais committer le dossier samples/ ni de données réelles.
 - Chaque fonctionnalité livrée avec ses tests ; lancer les tests avant de terminer.
 - Référence d'extraction : docs/reference/extracteur_rapport.py (prototype validé).
+
+## Graphify (graphe de connaissances du code)
+- Avant d'explorer le code : `graphify query "<question>"`, `graphify explain "<Classe>"`,
+  `graphify path "<A>" "<B>"`. Le graphe est dans graphify-out/ (non commité).
+- Après toute modification du code : `PYTHONHASHSEED=0 python -m graphify update .`
+  (le lanceur `graphify update` casse sur l'apostrophe du chemin `anwar's desk` ; la variable évite
+  la relance interne de graphify qui ne met pas le chemin entre guillemets).
+- `.graphifyignore` exclut samples/ : aucune donnée réelle ne doit entrer dans le graphe.

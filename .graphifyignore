@@ -1,0 +1,7 @@
+# Données réelles (loi 09-08) : jamais dans le graphe
+samples/
+# Artefacts de build
+backend/target/
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/

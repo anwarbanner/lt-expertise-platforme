@@ -1,5 +1,6 @@
-# Environnement de développement : PostgreSQL 16 uniquement.
+# Environnement de développement : PostgreSQL 16 et MinIO (stockage des PDF originaux).
 # Port hôte 5433 (5432 est souvent occupé par une installation locale de PostgreSQL).
+# Les ports ne sont publiés que sur 127.0.0.1 : rien n'est exposé au réseau (P11).
 services:
   postgres:
     image: postgres:16-alpine
@@ -19,5 +20,28 @@ services:
       timeout: 5s
       retries: 10
 
+  minio:
+    # MinIO a retiré ses images communautaires de Docker Hub (le dépôt minio/minio n'existe plus).
+    # Image locale retaguée depuis une copie en cache : voir docs/conception/modele-donnees.md §2.7.
+    image: lt-expertise/minio:RELEASE.2025-09-07T16-13-09Z
+    pull_policy: never
+    container_name: lt-expertise-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-lt_expertise}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-lt_expertise_dev}
+    ports:
+      - "127.0.0.1:${MINIO_PORT:-9000}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - lt-expertise-minio:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
 volumes:
   lt-expertise-pgdata:
+  lt-expertise-minio:
