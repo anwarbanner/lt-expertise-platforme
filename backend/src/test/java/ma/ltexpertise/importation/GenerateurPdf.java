@@ -16,14 +16,19 @@ final class GenerateurPdf {
     private GenerateurPdf() {
     }
 
-    /** Rapport au gabarit attendu : 2 pages, titre « RAPPORT D'EXPERTISE : n° » en page 1. */
+    /** Rapport complet au gabarit attendu, cohérent et sans champ manquant (voir {@link RapportPdfFactice}). */
     static byte[] rapport(String numero) {
-        return pdf("RAPPORT D'EXPERTISE : " + numero, 2, "Detail fournitures");
+        return RapportPdfFactice.numero(numero).pdf();
     }
 
     /** Même n° de rapport mais contenu différent, donc empreinte différente. */
     static byte[] autreVersion(String numero) {
-        return pdf("RAPPORT D'EXPERTISE : " + numero, 2, "Detail fournitures - version corrigee");
+        return RapportPdfFactice.numero(numero).commentaire("- VERSION CORRIGEE.").pdf();
+    }
+
+    /** Titre reconnu mais sans les tableaux du gabarit : accepté par l'analyse rapide, refusé par l'extraction. */
+    static byte[] titreSeul(String numero) {
+        return pdf("RAPPORT D'EXPERTISE : " + numero, 2, "Detail fournitures");
     }
 
     static byte[] pdf(String textePage1, int pages, String textePage2) {

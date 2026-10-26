@@ -22,8 +22,11 @@ server:
   port: ${SERVER_PORT:8080}
 
 lt:
-  # PDF originaux (P1) : MinIO local, jamais un service cloud (P11).
+  # PDF originaux (P1) : MinIO local (par défaut) ou dossier local, jamais un service cloud (P11).
   stockage:
+    type: ${LT_STOCKAGE_TYPE:minio}
+    # Mode « disque » : dossier des PDF, à inclure dans la sauvegarde quotidienne.
+    dossier: ${LT_STOCKAGE_DOSSIER:./donnees/pdf-originaux}
     url: ${MINIO_URL:http://localhost:9000}
     cle-acces: ${MINIO_ACCESS_KEY:lt_expertise}
     cle-secrete: ${MINIO_SECRET_KEY:lt_expertise_dev}
@@ -31,6 +34,23 @@ lt:
   import:
     # Aligné sur spring.servlet.multipart.max-file-size
     taille-max-octets: 20971520
+  dossiers:
+    # Validation en lot : nombre de dossiers validés par transaction
+    taille-paquet-validation: 500
+  # Authentification (F11, §8)
+  securite:
+    # Clé HMAC des jetons JWT (≥ 32 caractères) ; vide = clé aléatoire à chaque démarrage. À définir en production.
+    jwt-secret: ${LT_JWT_SECRET:}
+    duree-jeton-acces: 10m
+    # Déconnexion automatique après 30 min sans activité
+    duree-inactivite: 30m
+    duree-session-max: 10h
+    # true en production (HTTPS) ; false seulement en développement local en HTTP
+    cookie-securise: ${LT_COOKIE_SECURISE:false}
+    tentatives-max: 5
+    duree-verrouillage: 15m
+    # Comptes admin / gestionnaire / consultant créés si la base ne contient aucun utilisateur
+    mot-de-passe-initial: ${LT_MOT_DE_PASSE_INITIAL:LtExpertise-Dev-2026}
 
 management:
   endpoints:

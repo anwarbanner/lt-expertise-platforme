@@ -73,7 +73,7 @@ class RapportExpertisePersistanceTest {
         assertThat(r.getCreePar()).isEqualTo(ConfigurationJpa.AUTEUR_SYSTEME);
         assertThat(r.getDateMission()).isEqualTo(LocalDate.of(2026, 10, 6));
         assertThat(r.getDateRapport()).isEqualTo(LocalDate.of(2026, 10, 17));
-        assertThat(r.getZoneChoc()).isEqualTo(ZoneChoc.AVANT_LATERAL_GAUCHE);
+        assertThat(r.getZonesChoc()).containsExactly(ZoneChoc.AVANT_LATERAL_GAUCHE);
         assertThat(r.getAccordReparateur()).isTrue();
         assertThat(r.getTvaRecuperable()).isFalse();
         assertThat(r.getImportFichier().getHashSha256()).isEqualTo(JeuDeDonnees.hash('a'));

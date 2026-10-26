@@ -2,7 +2,9 @@ package ma.ltexpertise.dossier;
 
 import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
@@ -41,8 +43,11 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -58,7 +63,7 @@ import java.util.Set;
 public class RapportExpertise {
 
     private static final Set<StatutDossier> STATUTS_VALIDABLES =
-            EnumSet.of(StatutDossier.IMPORTE, StatutDossier.A_COMPLETER, StatutDossier.A_VERIFIER);
+            EnumSet.of(StatutDossier.IMPORTE, StatutDossier.A_COMPLETER, StatutDossier.A_VERIFIER, StatutDossier.PRET_A_VALIDER);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -110,7 +115,11 @@ public class RapportExpertise {
     @Column(length = 40)
     private NatureEvenement natureEvenement;
 
-    private ZoneChoc zoneChoc;
+    /** Zones de choc (P8) : un rapport peut en lister plusieurs sur la page 1. */
+    @ElementCollection
+    @CollectionTable(name = "rapport_zone_choc", joinColumns = @JoinColumn(name = "rapport_id"))
+    @Column(name = "zone_choc", nullable = false)
+    private Set<ZoneChoc> zonesChoc = new HashSet<>();
 
     @Column(length = 150)
     private String reparateur;
@@ -137,6 +146,10 @@ public class RapportExpertise {
 
     @Column(precision = 12, scale = 2)
     private BigDecimal vetusteTtc;
+
+    /** Imprimée à la place de la vétusté TTC quand la TVA est récupérable. */
+    @Column(precision = 12, scale = 2)
+    private BigDecimal vetusteHt;
 
     @Column(precision = 12, scale = 2)
     private BigDecimal depannage;
@@ -274,6 +287,11 @@ public class RapportExpertise {
     /** Change le statut, sauf vers VALIDE qui passe obligatoirement par {@link #valider}. */
     public void changerStatut(StatutDossier nouveauStatut) {
         verifierStatutHorsValidation(nouveauStatut);
+        if (statut == StatutDossier.VALIDE) {
+            // Un dossier validé puis modifié doit être validé de nouveau (P3, P6) ; la trace reste au journal.
+            validePar = null;
+            valideLe = null;
+        }
         this.statut = nouveauStatut;
     }
 
@@ -292,6 +310,10 @@ public class RapportExpertise {
         }
         partie.rattacher(this);
         parties.add(partie);
+    }
+
+    public void retirerPartie(TypePartie type) {
+        parties.removeIf(p -> p.getTypePartie() == type);
     }
 
     public void definirVehicule(Vehicule vehicule) {
@@ -321,6 +343,24 @@ public class RapportExpertise {
     public void ajouterValeurCommentaire(ValeurCommentaire valeur) {
         valeur.rattacher(this);
         valeursCommentaire.add(valeur);
+    }
+
+    /**
+     * Remplace les valeurs clés du commentaire (F12) par celles données. Une clé déjà présente est mise à jour sur
+     * place : Hibernate insère avant de supprimer, un retrait suivi d'un ajout violerait l'unicité (rapport, clé).
+     */
+    public void remplacerValeursCommentaire(List<ValeurCommentaire> nouvelles) {
+        valeursCommentaire.removeIf(v -> nouvelles.stream().noneMatch(n -> n.getCle() == v.getCle()));
+        for (ValeurCommentaire n : nouvelles) {
+            valeursCommentaire.stream().filter(v -> v.getCle() == n.getCle()).findFirst().ifPresentOrElse(
+                    v -> v.remplacer(n.getValeurTexte(), n.getValeurMontant(), n.getValeurDate()),
+                    () -> ajouterValeurCommentaire(n));
+        }
+    }
+
+    /** Supprime les résultats de contrôle avant un nouveau calcul (après une modification). */
+    public void viderResultatsControle() {
+        resultatsControle.clear();
     }
 
     public void ajouterResultatControle(ResultatControle resultat) {
@@ -506,12 +546,14 @@ public class RapportExpertise {
         this.natureEvenement = natureEvenement;
     }
 
-    public ZoneChoc getZoneChoc() {
-        return zoneChoc;
+    /** Zones de choc dans l'ordre de leur code. */
+    public List<ZoneChoc> getZonesChoc() {
+        return zonesChoc.stream().sorted(Comparator.comparingInt(ZoneChoc::getCode)).toList();
     }
 
-    public void setZoneChoc(ZoneChoc zoneChoc) {
-        this.zoneChoc = zoneChoc;
+    public void setZonesChoc(Collection<ZoneChoc> zones) {
+        zonesChoc.clear();
+        zonesChoc.addAll(zones);
     }
 
     public String getReparateur() {
@@ -560,6 +602,14 @@ public class RapportExpertise {
 
     public void setVetusteTtc(BigDecimal vetusteTtc) {
         this.vetusteTtc = vetusteTtc;
+    }
+
+    public BigDecimal getVetusteHt() {
+        return vetusteHt;
+    }
+
+    public void setVetusteHt(BigDecimal vetusteHt) {
+        this.vetusteHt = vetusteHt;
     }
 
     public BigDecimal getDepannage() {

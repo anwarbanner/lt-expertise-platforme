@@ -34,7 +34,7 @@ frontend/
 │   ├── domain/                    ← miroir TypeScript des énumérations et DTO du backend
 │   │   ├── referentiels.ts        ← StatutDossier, TypeProcedure, Role, zones de choc…
 │   │   └── imports.ts             ← RecapitulatifImport, ResultatImport, ImportFichier (API F1)
-│   ├── mocks/donnees.ts           ← toutes les données de démo, chaque bloc annoté de l'endpoint cible
+│   ├── (mocks/donnees.ts supprimé : tous les écrans sont branchés sur l'API)
 │   └── features/                  ← un dossier par module fonctionnel
 │       ├── auth/ConnexionPage.tsx
 │       ├── dashboard/TableauDeBordPage.tsx
@@ -60,7 +60,7 @@ Corrections d'alignement faites au passage :
 | # | Écart | Recommandation | Décision |
 |---|---|---|---|
 | D1 | Maquette en CSS sur mesure, `CLAUDE.md` prévoit MUI | Garder le design Figma (refaire en MUI perdrait la charte) ; retirer MUI de la stack | à valider |
-| D2 | Statut « Prêt à valider » absent de P6 et du backend | L'ajouter à `StatutDossier` (migration V2) : c'est l'état « contrôles OK, en attente du gestionnaire » (P3), filtré sur le tableau de bord | à valider |
+| D2 | Statut « Prêt à valider » absent de P6 et du backend | Ajouté à `StatutDossier` (migration V3) : contrôles OK et champs complets, en attente du gestionnaire (P3) | ✅ décidé |
 | D3 | « Refusé » affiché comme statut de dossier | C'est un statut d'**import** : le garder dans l'écran Import et la liste « Fichiers refusés » seulement | appliqué (type `StatutAffiche`) |
 | D4 | Écran « Analyse des prix » hors F1–F14 ; colonnes « référence » et « fournisseur » absentes des PDF | Soit avenant, soit version réduite sur `ligne_detail` (désignation, type O/A/R, prix, compagnie, véhicule) | à valider |
 | D5 | Génération : Word, arabe, choix des sections, brouillons | Hors périmètre ; F9 = PDF fidèle au rapport d'origine (P10) + export Excel | à valider |
@@ -75,9 +75,8 @@ Corrections d'alignement faites au passage :
 
 | Écran | Module | Endpoints | État backend |
 |---|---|---|---|
-| Connexion | F11 | `POST /api/auth/connexion`, `POST /api/auth/rafraichir`, `GET /api/moi` | ❌ à faire |
-| Importer | F1 | `POST /api/imports`, `GET /api/imports?refuses=true`, `GET /api/imports/{id}/pdf` | ✅ disponible |
-| Importer (suivi extraction) | F2–F4 | statut d'extraction par fichier (synchrone d'abord, < 5 s par rapport) | ❌ à faire |
+| Connexion | F11 | `POST /api/auth/connexion`, `POST /api/auth/rafraichir`, `POST /api/auth/deconnexion`, `GET /api/auth/moi` | ✅ disponible et branché |
+| Importer | F1–F4 | `POST /api/imports` (1 fichier → 201 ; lot → 202 en arrière-plan), `GET /api/imports/{lot}` (récapitulatif : réussis, à compléter, à vérifier, prêts à valider, refusés, en erreur), `GET /api/imports?refuses=true`, `GET /api/imports/{id}/pdf` | ✅ disponible (extraction et 28 contrôles compris) |
 | Dossiers | F7, F8 | `GET /api/dossiers?q=&statut=&compagnie=&zone=&du=&au=&montantMin=&page=&tri=` | ❌ (repository prêt : `JpaSpecificationExecutor`) |
 | Vérification | F5, P4 | `GET/PUT /api/dossiers/{id}`, `GET /api/dossiers/{id}/controles`, `POST /api/dossiers/{id}/validation` | ❌ (règle P3 prête dans l'entité) |
 | Détail | F8, P7 | `GET /api/dossiers/{id}`, `GET /api/dossiers/{id}/historique` | ❌ (journal d'audit prêt) |
@@ -93,7 +92,10 @@ Jalons du cahier des charges : **version de test le 16/11/2026**, **mise en serv
 ### Lot 0 — Structure ✅ (22/10)
 Restructuration ci-dessus, routeur, types du domaine, tests de routes. Backend : modèle, import F1, MinIO.
 
-### Lot 1 — Socle et authentification (23/10 → 30/10)
+### Lot 1 — Socle et authentification ✅ (22/10)
+Fait : client axios + TanStack Query, JWT en mémoire et rafraîchissement automatique (cookie HttpOnly, usage unique), routes et menu selon le rôle, utilisateur réel dans l'en-tête, connexion branchée, écran Import relié à l'API, proxy Vite. Restent du lot : polices embarquées (P11) et responsive tablette (D11).
+
+Plan initial :
 - Front : client API (`fetch` + TanStack Query), proxy Vite `/api` → `localhost:8080`, gestion des erreurs et du 401/403 ;
   écran Connexion branché ; garde de routes et menu selon le rôle ; polices embarquées (P11) ; responsive tablette (D11).
 - Back : JWT à durée limitée, verrouillage après 5 échecs, déconnexion sur inactivité, `GET /api/moi`, API sans état (CSRF off, CORS limité au front).
@@ -120,9 +122,16 @@ Restructuration ci-dessus, routeur, types du domaine, tests de routes. Backend :
 ### Lot 6 — Génération et exports (24/11 → 30/11)
 - Back : PDF JasperReports fidèle au gabarit (P10), uniquement depuis un dossier validé ; export Excel (POI) d'un dossier et d'une liste filtrée ; trace EXPORT_*.
 - Front : écran Génération simplifié au périmètre retenu (D5), téléchargement, historique.
+- **Livré le 22/10/2026** (module `generation`) :
+  - `GET /api/rapports/{numero}/pdf` : modèle JasperReports 7 dessiné en Java (`RapportPdf`, police DejaVu Sans
+    embarquée), 409 si le dossier n'est pas validé ; `GET /api/rapports/historique` (traces EXPORT_PDF) ;
+  - `GET /api/exports/dossiers/{numero}`, `GET /api/exports/dossiers` (toute la liste filtrée, lue par 500),
+    `GET /api/exports/prix` (toutes les lignes), `GET /api/journal-audit/export` (administrateur) : POI en flux (SXSSF) ;
+  - boutons branchés : fiche (PDF si validé, Excel), liste, analyse des prix, journal, écran Génération + historique.
 
 ### Lot 7 — Utilisateurs, audit, F12, F14 (26/11 → 03/12)
 - Comptes, rôles, réinitialisation par l'administrateur, journal d'audit filtrable ; valeurs clés du commentaire (F12) ; synchronisation du fichier Excel des rapports en cours (F14).
+- **Fait** : comptes, rôles, réinitialisation, journal filtrable et exportable ; F12 extraction et affichage. **Reste** : F12 filtres et statistiques, F14 (voir `../etat-avancement.md`).
 
 ### Mise en service (03/12 → 07/12)
 - `docker compose` de production : PostgreSQL, MinIO (image durable, question 10 du modèle), backend, nginx servant le front et `/api` en HTTPS sur le réseau interne ; sauvegardes quotidiennes base + bucket ; restauration testée ; recette signée.
@@ -133,5 +142,5 @@ Analyse des prix complète (D4), génération Word / arabe (D5), notifications t
 ## 6. Règles pour la suite
 - Le dépôt devient la source de vérité : les nouveaux écrans se maquettent dans Figma, puis s'intègrent dans `features/` en réutilisant `components/ui`.
 - Un appel API = une fonction typée dans `features/<module>/api.ts` utilisant les types de `domain/`.
-- Les données de `mocks/donnees.ts` disparaissent au fur et à mesure que les endpoints arrivent.
+- Plus de données factices : `mocks/donnees.ts` a été supprimé une fois tous les écrans branchés ; les tests simulent l'API.
 - Toute énumération ajoutée côté Java est reportée dans `domain/referentiels.ts`.

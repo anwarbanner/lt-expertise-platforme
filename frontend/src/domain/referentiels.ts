@@ -1,15 +1,20 @@
 // Miroir des énumérations du backend (ma.ltexpertise.dossier.referentiel, importation, utilisateur).
 // Toute évolution côté Java doit être reportée ici.
 
-export type StatutDossier = "EN_COURS" | "IMPORTE" | "A_COMPLETER" | "A_VERIFIER" | "VALIDE" | "ARCHIVE";
+export type StatutDossier =
+  | "EN_COURS"
+  | "IMPORTE"
+  | "A_COMPLETER"
+  | "A_VERIFIER"
+  | "PRET_A_VALIDER"
+  | "VALIDE"
+  | "ARCHIVE";
 
 /**
- * Statuts affichés par l'interface. Deux d'entre eux n'existent pas dans StatutDossier côté backend :
- * - PRET_A_VALIDER : dossier dont tous les contrôles passent, en attente du gestionnaire (décision en attente,
- *   voir docs/conception/analyse-frontend-roadmap.md) ;
- * - REFUSE : fichier refusé à l'import (StatutImport ≠ ACCEPTE), pas un statut de dossier.
+ * Statuts affichés par l'interface : ceux du dossier, plus REFUSE pour un fichier refusé à l'import
+ * (StatutImport ≠ ACCEPTE), qui n'est pas un statut de dossier.
  */
-export type StatutAffiche = StatutDossier | "PRET_A_VALIDER" | "REFUSE";
+export type StatutAffiche = StatutDossier | "REFUSE";
 
 export const LIBELLES_STATUT: Record<StatutAffiche, string> = {
   EN_COURS: "En cours",

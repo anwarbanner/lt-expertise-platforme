@@ -1,5 +1,25 @@
-// Graphique statique de la maquette : à remplacer par Recharts branché sur les statistiques (F10).
-export function BarChart({ stacked = false }: { stacked?: boolean }) {
-  const vals = [48, 57, 46, 69, 61, 78];
-  return <div className="bar-chart"><div className="chart-y"><span>80k</span><span>60k</span><span>40k</span><span>20k</span><span>0</span></div><div className="bars">{vals.map((v, i) => <div className="bar-col" key={i}><div className="bar-slot">{stacked ? <><i className="bar-light" style={{ height: `${v * .45}%` }} /><i className="bar-main stacked" style={{ height: `${v * .55}%` }} /></> : <i className={`bar-main ${i === 5 ? "accent" : ""}`} style={{ height: `${v}%` }} />}</div><span>{["Mai", "Juin", "Juil.", "Août", "Sept.", "Oct."][i]}</span></div>)}</div></div>;
+import { mois, nombre } from "@/domain/format";
+
+export interface Barre {
+  /** Mois « AAAA-MM ». */
+  mois: string;
+  valeur: number;
+  /** Seconde série empilée (barres claires), facultative. */
+  valeur2?: number;
+}
+
+/** Histogramme mensuel ; empilé si {@code valeur2} est renseigné. La dernière barre est mise en avant. */
+export function BarChart({ barres }: { barres: Barre[] }) {
+  const empile = barres.some((b) => b.valeur2 !== undefined);
+  const maximum = Math.max(1, ...barres.map((b) => b.valeur + (b.valeur2 ?? 0)));
+  const graduations = [1, 0.75, 0.5, 0.25, 0].map((f) => nombre(Math.round((maximum * f) / 1000)) + "k");
+  return <div className="bar-chart">
+    <div className="chart-y">{graduations.map((g, i) => <span key={i}>{g}</span>)}</div>
+    <div className="bars">{barres.map((b, i) => <div className="bar-col" key={b.mois} title={`${mois(b.mois, true)} : ${nombre(b.valeur)}${empile ? ` / ${nombre(b.valeur2)}` : ""} DH`}>
+      <div className="bar-slot">{empile
+        ? <><i className="bar-light" style={{ height: `${((b.valeur2 ?? 0) / maximum) * 100}%` }} /><i className="bar-main stacked" style={{ height: `${(b.valeur / maximum) * 100}%` }} /></>
+        : <i className={`bar-main ${i === barres.length - 1 ? "accent" : ""}`} style={{ height: `${(b.valeur / maximum) * 100}%` }} />}</div>
+      <span>{mois(b.mois)}</span>
+    </div>)}</div>
+  </div>;
 }

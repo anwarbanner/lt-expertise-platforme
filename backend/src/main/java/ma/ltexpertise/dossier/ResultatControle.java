@@ -53,6 +53,10 @@ public class ResultatControle {
     @Column(nullable = false)
     private boolean conforme;
 
+    /** Un résultat non conforme et bloquant empêche la validation ; sinon c'est un avertissement. */
+    @Column(nullable = false)
+    private boolean bloquant;
+
     @Column(nullable = false)
     private OffsetDateTime executeLe;
 
@@ -60,7 +64,7 @@ public class ResultatControle {
     }
 
     public ResultatControle(TypeControle type, String code, String libelle, String champ,
-                            BigDecimal valeurAttendue, BigDecimal valeurObtenue, boolean conforme,
+                            BigDecimal valeurAttendue, BigDecimal valeurObtenue, boolean conforme, boolean bloquant,
                             OffsetDateTime executeLe) {
         this.type = Objects.requireNonNull(type);
         this.code = Objects.requireNonNull(code);
@@ -69,6 +73,7 @@ public class ResultatControle {
         this.valeurAttendue = valeurAttendue;
         this.valeurObtenue = valeurObtenue;
         this.conforme = conforme;
+        this.bloquant = bloquant;
         this.executeLe = Objects.requireNonNull(executeLe);
     }
 
@@ -110,6 +115,10 @@ public class ResultatControle {
 
     public boolean isConforme() {
         return conforme;
+    }
+
+    public boolean isBloquant() {
+        return bloquant;
     }
 
     public OffsetDateTime getExecuteLe() {

@@ -1,57 +1,97 @@
-import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useSearchParams } from "react-router";
+import { cles, dossier, rechercherDossiers } from "@/api/dossiers";
+import { messageErreur } from "@/api/client";
+import { exporterDossier, historiqueRapports, telechargerRapportPdf } from "@/api/exports";
 import { ROUTES } from "@/app/routes";
+import { BoutonTelechargement } from "@/components/ui/BoutonTelechargement";
 import { Button } from "@/components/ui/Button";
 import { DataTable } from "@/components/ui/DataTable";
 import { Icon } from "@/components/ui/Icon";
 import { PageHead } from "@/components/ui/PageHead";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { DOSSIER_DEMO, rapportsGeneres } from "@/mocks/donnees";
+import { date, dateHeure, montant } from "@/domain/format";
 
 /**
- * Génération de rapports (F9). Le cahier des charges prévoit un PDF fidèle au rapport d'origine (P10) généré
- * depuis un dossier validé ; les options Word, arabe et choix des sections vont au-delà (voir la roadmap).
+ * Génération de rapports (F9) au périmètre retenu (D5) : un PDF fidèle au rapport d'origine (P10), uniquement
+ * depuis un dossier validé, et l'historique des rapports générés (traces EXPORT_PDF du journal).
  */
 export default function GenerationPage() {
   const navigate = useNavigate();
-  const [template, setTemplate] = useState("Rapport d’expertise complet");
-  const [reference, setReference] = useState(DOSSIER_DEMO);
-  const [generated, setGenerated] = useState(false);
-  const sections = ["Informations du sinistre", "Parties et véhicules", "Évaluation des dommages", "Détail des pièces", "Conclusion et indemnisation", "Historique des contrôles"];
+  const queryClient = useQueryClient();
+  const historique = useQuery({ queryKey: ["rapports", "historique"], queryFn: () => historiqueRapports(20) });
+  const [params, setParams] = useSearchParams();
+  const numero = params.get("dossier") ?? "";
+  const [saisie, setSaisie] = useState("");
+  const [q, setQ] = useState("");
+  const candidats = useQuery({ queryKey: cles.dossiers({ statut: "VALIDE", q }), queryFn: () => rechercherDossiers({ statut: "VALIDE", q }, 8), enabled: !numero });
+  const choisi = useQuery({ queryKey: cles.dossier(numero), queryFn: () => dossier(numero), enabled: !!numero });
+
+  useEffect(() => {
+    const minuterie = setTimeout(() => setQ(saisie.trim()), 300);
+    return () => clearTimeout(minuterie);
+  }, [saisie]);
+
+  const choisir = (n: string | null) => setParams(n ? { dossier: n } : {});
+  const d = choisi.data;
+  const vehicule = d?.vehicule ? [d.vehicule.marque, d.vehicule.modele].filter(Boolean).join(" ") : null;
+  const valide = d?.statut === "VALIDE";
+
   return <main className="main generation-page">
-    <PageHead title="Génération des rapports" subtitle="Créez des documents normalisés à partir des dossiers validés" actions={<Button variant="secondary" icon="folder" onClick={() => navigate(ROUTES.dossiers)}>Consulter les dossiers</Button>} />
+    <PageHead title="Génération des rapports" subtitle="Produisez le rapport PDF d’un dossier validé" actions={<Button variant="secondary" icon="folder" onClick={() => navigate(ROUTES.dossiers)}>Consulter les dossiers</Button>} />
     <div className="generation-layout">
       <div className="generation-settings">
         <article className="card generation-card">
-          <div className="generation-card-head"><span>1</span><div><h2>Dossier source</h2><p>Sélectionnez le dossier validé à utiliser</p></div><b>OBLIGATOIRE</b></div>
-          <label className="generation-field"><span>N° de dossier ou assuré</span><div><Icon name="search" size={16} /><input value={reference} onChange={e => { setReference(e.target.value); setGenerated(false); }} placeholder="Rechercher un dossier validé…" /></div></label>
-          <div className="selected-folder"><span><Icon name="check" size={14} /></span><div><strong>Dossier {reference || DOSSIER_DEMO}</strong><small>Hassan Mansouri · Renault Clio V · 32148-B-6</small></div><StatusBadge statut="VALIDE" /></div>
+          <div className="generation-card-head"><span>1</span><div><h2>Dossier source</h2><p>Seul un dossier validé peut être généré</p></div><b>OBLIGATOIRE</b></div>
+          {numero
+            ? <>
+              {choisi.isPending && <p className="etat-chargement">Chargement du dossier…</p>}
+              {choisi.isError && <p className="import-erreur" role="alert">{messageErreur(choisi.error, "Dossier introuvable.")}</p>}
+              {d && <div className="selected-folder"><span><Icon name="check" size={14} /></span><div><strong>Dossier {d.numeroRapport}</strong><small>{[d.assure?.nomPrenom, vehicule, d.vehicule?.immatriculation].filter(Boolean).join(" · ") || "—"}</small></div><StatusBadge statut={d.statut} /></div>}
+              {d && !valide && <p className="import-erreur" role="alert">Ce dossier n’est pas validé : la génération n’est possible qu’après validation par un gestionnaire.</p>}
+              <Button variant="quiet" onClick={() => choisir(null)}>Choisir un autre dossier</Button>
+            </>
+            : <>
+              <label className="generation-field"><span>N° de rapport, assuré ou immatriculation</span><div><Icon name="search" size={16} /><input value={saisie} onChange={(e) => setSaisie(e.target.value)} placeholder="Rechercher un dossier validé…" /></div></label>
+              {candidats.isError && <p className="import-erreur" role="alert">{messageErreur(candidats.error, "Recherche indisponible.")}</p>}
+              {candidats.data && (candidats.data.content.length
+                ? <ul className="generation-candidats">{candidats.data.content.map((c) => <li key={c.id}><button type="button" onClick={() => choisir(c.numeroRapport)}>
+                  <strong>{c.numeroRapport}</strong><small>{[c.assure, c.immatriculation, c.compagnie].filter(Boolean).join(" · ")}</small><span>{montant(c.montantIndemnisation)}</span></button></li>)}</ul>
+                : <p className="etat-chargement">Aucun dossier validé ne correspond.</p>)}
+            </>}
         </article>
         <article className="card generation-card">
-          <div className="generation-card-head"><span>2</span><div><h2>Modèle et contenu</h2><p>Définissez la structure du document</p></div></div>
-          <label className="generation-field"><span>Modèle de rapport</span><select value={template} onChange={e => { setTemplate(e.target.value); setGenerated(false); }}><option>Rapport d’expertise complet</option><option>Synthèse d’indemnisation</option><option>Rapport contradictoire</option></select></label>
-          <div className="report-sections"><span>Sections à inclure</span>{sections.map((section, i) => <label key={section}><input type="checkbox" defaultChecked={i < 5} /><span><strong>{section}</strong><small>{i === 5 ? "Journal des modifications et validations" : "Données extraites et validées du dossier"}</small></span></label>)}</div>
+          <div className="generation-card-head"><span>2</span><div><h2>Document produit</h2><p>Rapport d’expertise au format PDF, fidèle au gabarit du cabinet (P10)</p></div></div>
+          <p className="etat-chargement">Mêmes rubriques et même ordre que le rapport de l’expert, avec les données validées en base (corrections comprises). Chaque génération est tracée au journal.</p>
         </article>
-        <article className="card generation-card">
-          <div className="generation-card-head"><span>3</span><div><h2>Paramètres de sortie</h2><p>Finalisez les options d’export</p></div></div>
-          <div className="output-grid"><label className="generation-field"><span>Format</span><select><option>PDF sécurisé</option><option>Document Word (.docx)</option></select></label><label className="generation-field"><span>Langue</span><select><option>Français</option><option>Arabe</option></select></label></div>
-          <div className="output-options"><label><input type="checkbox" defaultChecked />Ajouter le logo et l’en-tête officiel</label><label><input type="checkbox" defaultChecked />Inclure la signature de l’expert</label><label><input type="checkbox" defaultChecked />Numéroter toutes les pages</label></div>
-        </article>
-        <div className={`generation-feedback ${generated ? "visible" : ""}`}><Icon name="check" size={16} /><div><strong>Rapport généré avec succès</strong><span>RAP-2026-0284.pdf est prêt au téléchargement.</span></div><Button variant="quiet" icon="download">Télécharger</Button></div>
-        <div className="generation-actions"><Button variant="secondary">Enregistrer comme brouillon</Button><Button icon="file" onClick={() => setGenerated(true)}>Générer le rapport</Button></div>
+        <div className="generation-actions">
+          {d && <BoutonTelechargement variant="secondary" action={() => exporterDossier(d.numeroRapport)}>Exporter en Excel</BoutonTelechargement>}
+          <BoutonTelechargement variant="primary" icon="file" disabled={!valide} action={() => telechargerRapportPdf(numero)}
+            title={valide ? undefined : "Sélectionnez un dossier validé"} apres={() => void queryClient.invalidateQueries({ queryKey: ["rapports"] })}>Générer le rapport PDF</BoutonTelechargement>
+        </div>
       </div>
       <aside className="report-preview card">
-        <div className="preview-toolbar"><div><strong>Aperçu du rapport</strong><span>Mis à jour automatiquement</span></div><button aria-label="Agrandir l’aperçu"><Icon name="eye" size={16} /></button></div>
+        <div className="preview-toolbar"><div><strong>Aperçu du rapport</strong><span>{d ? "Données du dossier" : "Sélectionnez un dossier"}</span></div>{d && <button aria-label="Ouvrir la fiche du dossier" onClick={() => navigate(ROUTES.dossier(d.numeroRapport))}><Icon name="eye" size={16} /></button>}</div>
         <div className="preview-canvas"><div className="report-paper">
-          <header><img src="/logo-lt-expertise.png" alt="LT Expertise" /><div><span>Cabinet d’expertise automobile</span><small>Rapport confidentiel</small></div></header>
-          <div className="report-paper-title"><small>RÉFÉRENCE {reference || DOSSIER_DEMO}</small><h2>{template}</h2><p>Établi le 28 octobre 2026</p></div>
-          <section><h3>Informations générales</h3><div className="paper-grid"><span>Assuré<strong>Hassan Mansouri</strong></span><span>Compagnie<strong>Wafa Assurance</strong></span><span>Véhicule<strong>Renault Clio V</strong></span><span>Immatriculation<strong>32148-B-6</strong></span></div></section>
-          <section><h3>Évaluation des dommages</h3><div className="paper-table"><span>Désignation</span><span>Montant HT</span><span>Tôlerie et main d’œuvre</span><b>1 440,00 DH</b><span>Pièces et fournitures</span><b>560,00 DH</b></div></section>
-          <div className="paper-total"><span>Montant d’indemnisation</span><strong>2 400,00 DH</strong><small>Deux mille quatre cents dirhams</small></div>
-          <footer><span>LT Expertise · Document généré automatiquement</span><b>1 / 3</b></footer>
+          <header><img src="/logo-lt-expertise.png" alt="LT Expertise" /><div><span>{d?.cabinet ?? "Cabinet d’expertise automobile"}</span><small>Rapport confidentiel</small></div></header>
+          <div className="report-paper-title"><small>RÉFÉRENCE {d?.numeroRapport ?? "—"}</small><h2>Rapport d’expertise</h2><p>{d?.dateRapport ? `Établi le ${date(d.dateRapport)}${d.lieuRapport ? ` à ${d.lieuRapport}` : ""}` : "—"}</p></div>
+          <section><h3>Informations générales</h3><div className="paper-grid"><span>Assuré<strong>{d?.assure?.nomPrenom ?? "—"}</strong></span><span>Compagnie<strong>{d?.compagnie ?? "—"}</strong></span><span>Véhicule<strong>{vehicule || "—"}</strong></span><span>Immatriculation<strong>{d?.vehicule?.immatriculation ?? "—"}</strong></span></div></section>
+          <section><h3>Évaluation des dommages</h3><div className="paper-table"><span>Désignation</span><span>Montant TTC</span><span>Main d’œuvre</span><b>{montant(d?.totalMainOeuvre?.ttc)}</b><span>Fournitures</span><b>{montant(d?.totalFournitures?.ttc)}</b></div></section>
+          <div className="paper-total"><span>Montant d’indemnisation</span><strong>{montant(d?.montantIndemnisation)}</strong>{d?.montantLettres && <small>{d.montantLettres}</small>}</div>
+          <footer><span>LT Expertise · Document généré automatiquement</span></footer>
         </div></div>
       </aside>
     </div>
-    <article className="card generated-list"><div className="section-head"><div><h2>Rapports récemment générés</h2><p>Historique des derniers documents créés</p></div><Button variant="quiet">Voir tout l’historique <Icon name="arrow" size={14} /></Button></div><DataTable headers={["RÉFÉRENCE", "TYPE DE RAPPORT", "DOSSIER", "ASSURÉ", "DATE DE GÉNÉRATION", "FORMAT", "ACTIONS"]}>{rapportsGeneres.map(report => <tr key={report[0]}><td><strong>{report[0]}</strong></td><td>{report[1]}</td><td>{report[2]}</td><td>{report[3]}</td><td>{report[4]}</td><td><span className="format-badge"><Icon name="file" size={12} />{report[5]}</span></td><td><div className="report-actions"><button onClick={() => navigate(ROUTES.dossier(report[2]))}>Consulter</button><button><Icon name="download" size={15} /></button><button><Icon name="more" size={16} /></button></div></td></tr>)}</DataTable></article>
+    <article className="card generated-list"><div className="section-head"><div><h2>Rapports récemment générés</h2><p>D’après le journal d’audit (génération PDF)</p></div></div>
+      {historique.isError && <p className="import-erreur" role="alert">{messageErreur(historique.error, "Historique indisponible.")}</p>}
+      {historique.data?.length === 0 && <p className="etat-chargement">Aucun rapport généré pour l’instant.</p>}
+      {!!historique.data?.length && <DataTable headers={["DOSSIER", "ASSURÉ", "COMPAGNIE", "GÉNÉRÉ LE", "PAR", "ACTIONS"]}>{historique.data.map((g, i) =>
+        <tr key={`${g.numeroRapport}-${g.genereLe}-${i}`}><td><strong>{g.numeroRapport}</strong></td><td>{g.assure ?? "—"}</td><td>{g.compagnie ?? "—"}</td>
+          <td>{dateHeure(g.genereLe)}</td><td>{g.generePar ?? "—"}</td>
+          <td><div className="report-actions"><button onClick={() => navigate(ROUTES.dossier(g.numeroRapport))}>Consulter</button>
+            <BoutonTelechargement variant="quiet" icon="download" action={() => telechargerRapportPdf(g.numeroRapport)}
+              apres={() => void queryClient.invalidateQueries({ queryKey: ["rapports"] })}>Régénérer</BoutonTelechargement></div></td></tr>)}</DataTable>}
+    </article>
   </main>;
 }

@@ -6,6 +6,8 @@ public enum StatutDossier {
     IMPORTE,
     A_COMPLETER,
     A_VERIFIER,
+    /** Contrôles conformes et champs complets : en attente de la validation d'un gestionnaire (P3). */
+    PRET_A_VALIDER,
     VALIDE,
     ARCHIVE
 }

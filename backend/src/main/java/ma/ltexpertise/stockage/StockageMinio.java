@@ -13,6 +13,7 @@ import io.minio.StatObjectResponse;
 import io.minio.errors.ErrorResponseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayInputStream;
@@ -24,6 +25,7 @@ import java.util.Optional;
  * ou le supprimer (P1). Seul un administrateur peut lever ce verrou explicitement.
  */
 @Component
+@ConditionalOnProperty(name = "lt.stockage.type", havingValue = "minio", matchIfMissing = true)
 public class StockageMinio implements StockageDocuments {
 
     private static final Logger LOG = LoggerFactory.getLogger(StockageMinio.class);

@@ -4,9 +4,14 @@ import ma.ltexpertise.audit.ActionAudit;
 import ma.ltexpertise.audit.JournalAudit;
 import ma.ltexpertise.audit.JournalAuditRepository;
 import ma.ltexpertise.commun.Empreintes;
+import ma.ltexpertise.controle.Controle;
+import ma.ltexpertise.controle.ControleCoherenceService;
 import ma.ltexpertise.dossier.RapportExpertise;
 import ma.ltexpertise.dossier.RapportExpertiseRepository;
 import ma.ltexpertise.dossier.referentiel.StatutDossier;
+import ma.ltexpertise.extraction.ExtracteurRapport;
+import ma.ltexpertise.extraction.GabaritNonReconnuException;
+import ma.ltexpertise.extraction.RapportExtrait;
 import ma.ltexpertise.stockage.DocumentStocke;
 import ma.ltexpertise.stockage.StockageDocuments;
 import ma.ltexpertise.utilisateur.Utilisateur;
@@ -15,18 +20,21 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
 /**
  * Import d'un PDF (F1) : contrôle du fichier, détection des doublons (empreinte puis n° de rapport, P2),
- * conservation de l'original dans le stockage verrouillé (P1), création du dossier au statut IMPORTE
+ * conservation de l'original dans le stockage verrouillé (P1), extraction des champs et des tableaux (F2, F3),
+ * contrôles de cohérence (P4, P5), enregistrement du dossier avec son statut calculé (jamais VALIDE, P3)
  * et trace dans le journal d'audit (P7). Les PDF refusés sont conservés avec leur motif (§3).
  */
 @Service
@@ -37,17 +45,22 @@ public class ServiceImport {
 
     private final StockageDocuments stockage;
     private final AnalyseurGabarit analyseur;
+    private final ExtracteurRapport extracteur;
+    private final ControleCoherenceService controleCoherence;
     private final ImportFichierRepository imports;
     private final RapportExpertiseRepository rapports;
     private final JournalAuditRepository journal;
     private final ProprietesImport proprietes;
     private final Clock horloge;
 
-    public ServiceImport(StockageDocuments stockage, AnalyseurGabarit analyseur, ImportFichierRepository imports,
+    public ServiceImport(StockageDocuments stockage, AnalyseurGabarit analyseur, ExtracteurRapport extracteur,
+                         ControleCoherenceService controleCoherence, ImportFichierRepository imports,
                          RapportExpertiseRepository rapports, JournalAuditRepository journal,
                          ProprietesImport proprietes, Clock horloge) {
         this.stockage = stockage;
         this.analyseur = analyseur;
+        this.extracteur = extracteur;
+        this.controleCoherence = controleCoherence;
         this.imports = imports;
         this.rapports = rapports;
         this.journal = journal;
@@ -100,7 +113,17 @@ public class ServiceImport {
         if (!analyse.reconnu()) {
             return refuser(fichier, StatutImport.REFUSE_GABARIT, IssueImport.REFUSE_GABARIT, analyse.motif(), null);
         }
-        fichier.setGabaritDetecte(analyse.gabarit());
+        RapportExtrait extrait;
+        try {
+            extrait = extracteur.extraire(contenu);
+        } catch (GabaritNonReconnuException e) {
+            // Titre reconnu mais structure différente : rien n'est enregistré (§2).
+            return refuser(fichier, StatutImport.REFUSE_GABARIT, IssueImport.REFUSE_GABARIT, e.getMessage(), null);
+        } catch (IOException e) {
+            return refuser(fichier, StatutImport.ERREUR_LECTURE, IssueImport.ERREUR_LECTURE,
+                    "PDF illisible : " + e.getMessage(), null);
+        }
+        fichier.setGabaritDetecte(extrait.getGabarit());
 
         Optional<RapportExpertise> existant = rapports.findByNumeroRapport(analyse.numeroRapport());
         if (existant.isPresent() && !estDossierEnCoursSansPdf(existant.get())) {
@@ -115,21 +138,29 @@ public class ServiceImport {
         IssueImport issue;
         if (existant.isPresent()) {
             rapport = existant.get();
-            rapport.changerStatut(StatutDossier.IMPORTE);
             issue = IssueImport.RATTACHE_DOSSIER_EN_COURS;
         } else {
-            rapport = new RapportExpertise(analyse.numeroRapport(), StatutDossier.IMPORTE);
+            rapport = new RapportExpertise(extrait.getNumeroRapport(), StatutDossier.IMPORTE);
             issue = IssueImport.ACCEPTE;
         }
-        rapport.setNatureRapport(analyse.natureRapport());
-        rapport.setGabaritVersion(analyse.gabarit());
+        ConversionRapportExtrait.appliquer(extrait, rapport);
         rapport.setImportFichier(fichier);
+        List<Controle> controles = controleCoherence.controler(extrait);
+        ConversionRapportExtrait.ajouterResultats(rapport, controles, extrait.getChampsASaisir(), maintenant);
+        StatutDossier statut = controleCoherence.statutApresImport(controles, extrait.getChampsASaisir());
+        rapport.changerStatut(statut);
         rapports.save(rapport);
 
+        int conformes = (int) controles.stream().filter(Controle::ok).count();
+        Map<String, Object> details = details(nomFichier, hash, issue, null);
+        details.put("statutDossier", statut.name());
+        details.put("controlesConformes", conformes + "/" + controles.size());
+        details.put("champsASaisir", extrait.getChampsASaisir().size());
         journal.save(new JournalAudit(ActionAudit.IMPORT, auteur, maintenant)
                 .surEntite(ImportFichier.class.getSimpleName(), fichier.getId(), rapport.getId())
-                .avecDetails(details(nomFichier, hash, issue, null)));
-        return new ResultatImport(nomFichier, issue, fichier.getId(), rapport.getId(), analyse.numeroRapport(), null);
+                .avecDetails(details));
+        return new ResultatImport(nomFichier, issue, fichier.getId(), rapport.getId(), extrait.getNumeroRapport(), null,
+                statut, conformes, controles.size(), extrait.getChampsASaisir().size());
     }
 
     /** PDF original, relu depuis le stockage et contrôlé contre l'empreinte enregistrée (P1). */
@@ -161,7 +192,8 @@ public class ServiceImport {
         journal.save(new JournalAudit(ActionAudit.IMPORT_REFUSE, fichier.getImportePar(), fichier.getImporteLe())
                 .surEntite(ImportFichier.class.getSimpleName(), fichier.getId(), null)
                 .avecDetails(details(fichier.getNomFichier(), fichier.getHashSha256(), issue, motif)));
-        return new ResultatImport(fichier.getNomFichier(), issue, fichier.getId(), null, numeroRapport, motif);
+        return new ResultatImport(fichier.getNomFichier(), issue, fichier.getId(), null, numeroRapport, motif,
+                null, null, null, null);
     }
 
     private void journaliserRefus(Utilisateur auteur, OffsetDateTime maintenant, String nomFichier, String hash,

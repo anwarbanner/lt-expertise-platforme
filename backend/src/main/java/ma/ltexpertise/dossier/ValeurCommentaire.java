@@ -56,6 +56,12 @@ public class ValeurCommentaire {
         this.rapport = rapport;
     }
 
+    void remplacer(String valeurTexte, BigDecimal valeurMontant, LocalDate valeurDate) {
+        this.valeurTexte = valeurTexte;
+        this.valeurMontant = valeurMontant;
+        this.valeurDate = valeurDate;
+    }
+
     public Long getId() {
         return id;
     }

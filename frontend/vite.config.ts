@@ -31,9 +31,14 @@ react(),
       },
     },
     server: {
-      host: process.env.FIGMA_DEV_SERVER_HOST || '0.0.0.0',
+      // localhost par défaut : le serveur de développement n'est pas exposé au réseau (P11).
+      host: process.env.FIGMA_DEV_SERVER_HOST || 'localhost',
       port: parseInt(process.env.PORT || '8443'),
       strictPort: true,
+      // Même origine que l'interface : le cookie de rafraîchissement (SameSite=Strict) accompagne les appels.
+      proxy: {
+        '/api': process.env.LT_API_URL || 'http://localhost:8080',
+      },
       watch: {
         ignored: [
           '**/.figma/**',
@@ -41,7 +46,7 @@ react(),
       },
     },
     preview: {
-      host: process.env.FIGMA_DEV_SERVER_HOST || '0.0.0.0',
+      host: process.env.FIGMA_DEV_SERVER_HOST || 'localhost',
       port: parseInt(process.env.PORT || '8443'),
     },
   }

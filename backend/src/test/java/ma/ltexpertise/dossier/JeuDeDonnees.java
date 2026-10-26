@@ -24,6 +24,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 
 /**
  * Données fictives (aucune donnée réelle, cf. CLAUDE.md), aux montants cohérents (P4) :
@@ -73,7 +74,7 @@ final class JeuDeDonnees {
         r.setLieuRapport("Casablanca");
         r.setNatureContrat(NatureContrat.RC);
         r.setNatureEvenement(NatureEvenement.CIRCULATION_HORS_STATIONNEMENT);
-        r.setZoneChoc(ZoneChoc.AVANT_LATERAL_GAUCHE);
+        r.setZonesChoc(List.of(ZoneChoc.AVANT_LATERAL_GAUCHE));
         r.setReparateur("GARAGE TEST");
         r.setAccordReparateur(true);
         r.setTotalMainOeuvre(new Montants(dh("1200.00"), dh("240.00"), dh("1440.00")));
@@ -141,7 +142,7 @@ final class JeuDeDonnees {
 
         r.ajouterResultatControle(new ResultatControle(TypeControle.COHERENCE, "INDEMNISATION",
                 "Total général TTC - vétusté = indemnisation", "montantIndemnisation",
-                dh("7160.00"), dh("7160.00"), true, MAINTENANT));
+                dh("7160.00"), dh("7160.00"), true, true, MAINTENANT));
         return r;
     }
 

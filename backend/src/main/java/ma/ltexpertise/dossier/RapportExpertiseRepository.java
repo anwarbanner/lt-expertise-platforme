@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -23,15 +24,24 @@ public interface RapportExpertiseRepository
 
     Optional<RapportExpertise> findByNumeroRapport(String numeroRapport);
 
+    /** Dossiers cochés pour une validation en lot. */
+    List<RapportExpertise> findByNumeroRapportIn(Collection<String> numeros);
+
     /** Rapprochement d'un dossier « En cours » par référence sinistre (F14). */
     List<RapportExpertise> findByRefSinistre(String refSinistre);
 
     Page<RapportExpertise> findByStatut(StatutDossier statut, Pageable pageable);
 
-    /** Alertes d'anomalies : dossiers ayant au moins un contrôle non conforme. */
+    long countByStatut(StatutDossier statut);
+
+    @Query("select distinct r.compagnie from RapportExpertise r where r.compagnie is not null order by r.compagnie")
+    List<String> compagnies();
+
+    /** Alertes d'anomalies : dossiers ayant au moins un contrôle bloquant non conforme. */
     @Query("""
             select r from RapportExpertise r
-            where exists (select 1 from ResultatControle c where c.rapport = r and c.conforme = false)
+            where exists (select 1 from ResultatControle c where c.rapport = r and c.conforme = false
+                          and c.bloquant = true)
             """)
     Page<RapportExpertise> findAvecAnomalies(Pageable pageable);
 }

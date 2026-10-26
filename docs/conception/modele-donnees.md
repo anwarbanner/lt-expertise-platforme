@@ -7,6 +7,26 @@ Sources : cahier des charges §2, §4 (P1–P11), §6 (F1–F14), extracteur de 
 Visualisation : ouvrir `modele-donnees.html` dans un navigateur (diagramme UML + ER).
 Source UML : `modele-donnees.puml` (PlantUML).
 
+## Évolutions depuis la v1 (migrations Flyway)
+
+| Migration | Changement | Origine |
+|---|---|---|
+| V2 | `rapport_expertise.vetuste_ht` | Rapports à TVA récupérable : « Vétusté HT » imprimée au lieu de TTC (question 11) |
+| V3 | Statut `PRET_A_VALIDER` | Décision D2 : contrôles conformes et champs complets, en attente du gestionnaire (P3) |
+| V4 | Tables `lot_import`, `resultat_lot_import` | Lots traités en arrière-plan, récapitulatif via `GET /api/imports/{lot}` |
+| V5 | `ligne_detail.prix_unitaire` peut être négatif | Prix faux imprimés par le logiciel de l'expert (2 rapports réels), conservés tels quels et signalés par le contrôle `PAGE2_LIGNES_PRIX` |
+| V6 | Table `jeton_rafraichissement` | Sessions (F11) : jeton opaque en cookie HttpOnly, seule son empreinte est stockée, rotation à chaque usage |
+| V7 | Table `rapport_zone_choc` (la colonne `rapport_expertise.zone_choc` disparaît) ; colonne `resultat_controle.bloquant` ; clés `PIECES_RECUPERATION_FERRAILLE`, `PEINTURE_REGLES_ART` | Plusieurs zones de choc par rapport ; champ absent du PDF non bloquant (sauf montant, procédure, TVA) ; valeurs du commentaire 2026 (F12) |
+| V8 | Migration Java `db.migration.V8__valeurs_commentaire_existantes` | Valeurs du commentaire calculées pour les dossiers déjà importés |
+| V9 | `PAGE2_LIGNES_PRIX` de nouveau bloquant | Les prix faux se corrigent à la main (PUT `prixLignes`) avant validation |
+
+Statut après import : À vérifier si un contrôle **bloquant** échoue, sinon À compléter s'il manque une donnée
+essentielle (montant d'indemnisation, procédure, TVA récupérable), sinon Prêt à valider. Les autres champs absents
+du PDF sont des avertissements. Jamais VALIDE automatiquement (P3). Détail : [../regles-metier.md](../regles-metier.md).
+
+Stockage des PDF : MinIO par défaut ; `lt.stockage.type=disque` range les originaux en lecture seule dans
+`lt.stockage.dossier` (repli tant que la question 10 sur l'image MinIO n'est pas tranchée).
+
 ## 0. Conventions
 
 | Alias        | Type PostgreSQL        | Java          | Usage                                     |
@@ -74,7 +94,7 @@ Source UML : `modele-donnees.puml` (PlantUML).
 | lieu_rapport | varchar(60) | « Casablanca » |
 | nature_contrat | NatureContrat | |
 | nature_evenement | NatureEvenement | champ N.E |
-| zone_choc | smallint | `CHECK (zone_choc BETWEEN 1 AND 8)`, indexé |
+| ~~zone_choc~~ | — | Remplacée en V7 par la table `rapport_zone_choc (rapport_id, zone_choc 1–8)` : plusieurs zones par rapport |
 | reparateur | varchar(150) | indexé (recherche F7) |
 | accord_reparateur | boolean | Oui (X) / Non (X) |
 | total_mo_ht / total_mo_tva / total_mo_ttc | montant | « Total main d'oeuvre » tel que lu (contrôlé P4) |
@@ -478,4 +498,9 @@ erDiagram
 7. ✅ **PDF** : stockés dans MinIO local (voir 2.7), référence + hash en base.
 8. **Qualité des données** vues : date sinistre `23/12/1925` (B1), kilométrage/énergie décalés par la mise en page (« GLC220 », « CLIO » à la place du km/énergie), n° police masqué. On ajoute un contrôle « dates cohérentes » (sinistre ≤ mission ≤ expertise ≤ rapport) ?
 9. **Compagnie / réparateur / expert** : texte libre (recommandé pour la v1) ou référentiels dédiés pour fiabiliser les statistiques ?
+11. **Vétusté HT** (constat de l'extraction, 22/10/2026) : quand la TVA est récupérable, le rapport imprime
+    « Vétusté HT » au lieu de « Vétusté TTC » (A_rapport4). Ajouter `vetuste_ht numeric(12,2)` en V2.
+    Règles P4 confirmées sur les 27 rapports : indemnisation = total général HT (TVA récupérable) ou TTC − vétusté ;
+    Σ « Total » page 2 = total fournitures TTC − vétusté (la colonne est vétusté déduite) ; le tableau de détail
+    peut continuer en page 3.
 10. **Image MinIO durable** : construire l'image depuis les sources MinIO (AGPL), utiliser un fork maintenu, ou garder l'image en cache archivée (`docker save`) pour l'installation chez LT Expertise ?

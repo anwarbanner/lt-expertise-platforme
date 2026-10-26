@@ -2,10 +2,13 @@ package ma.ltexpertise.stockage;
 
 import io.minio.MinioClient;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+/** Stockage MinIO, choisi par défaut ({@code lt.stockage.type=minio}). */
 @Configuration(proxyBeanMethods = false)
+@ConditionalOnProperty(name = "lt.stockage.type", havingValue = "minio", matchIfMissing = true)
 public class ConfigurationStockage {
 
     @Bean
