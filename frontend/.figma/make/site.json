@@ -1,4 +1,9 @@
 {
+  "title": "LT Expertise",
+  "language": "fr",
+  "icons": {
+    "icon": "/favicon.png"
+  },
   "description": "Manage automotive expertise reports efficiently with a user-friendly interface tailored for LT Expertise, featuring intuitive navigation and real-time status updates.",
   "robots": {
     "index": false
