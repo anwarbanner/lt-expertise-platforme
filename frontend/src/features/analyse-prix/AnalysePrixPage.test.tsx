@@ -15,10 +15,9 @@ afterEach(() => {
 const ANALYSE = {
   ...PRIX_VIDE, nombre: 2, minimum: 300, moyenne: 650, maximum: 1000, moyenneParType: { ORIGINE: 1000, ADAPTABLE: 300 },
   lignes: [
-    { designation: "Pare-choc avant", typePiece: "ORIGINE", compagnie: "Wafa Assurance", marque: "Renault", modele: "Clio V", prixUnitaire: 1000, vetustePct: 20, numeroRapport: "268202-0284", date: "2026-10-10" },
-    { designation: "Phare gauche", typePiece: "ADAPTABLE", compagnie: "RMA", marque: "Dacia", modele: null, prixUnitaire: 300, vetustePct: null, numeroRapport: "268202-0313", date: null },
+    { numeroRapport: "268202-0284", designation: "Pare-choc avant", typePiece: "ORIGINE", marque: "Renault", modele: "Clio V", typeMine: "BJA", prixUnitaire: 1000, date: "2026-10-10" },
+    { numeroRapport: "268202-0313", designation: "Phare gauche", typePiece: "ADAPTABLE", marque: "Dacia", modele: null, typeMine: null, prixUnitaire: 300, date: null },
   ],
-  compagnies: ["RMA", "Wafa Assurance"], marques: ["Dacia", "Renault"],
 };
 
 describe("analyse des prix", () => {
@@ -30,8 +29,10 @@ describe("analyse des prix", () => {
     expect(screen.getByText("Phare gauche")).toBeTruthy();
     expect(screen.getAllByText("300,00 DH").length).toBeGreaterThan(0);
     expect(screen.getAllByText("1 000,00 DH").length).toBeGreaterThan(0);
-    expect(screen.getByText("Renault Clio V")).toBeTruthy();
-    expect(screen.getByRole("option", { name: "RMA" })).toBeTruthy();
+    expect(screen.getByText("Clio V")).toBeTruthy();
+    expect(screen.getByText("BJA")).toBeTruthy();
+    expect(screen.getAllByRole("columnheader").slice(0, 8).map((th) => th.textContent?.replace(/[▲▼⇅]/g, ""))).toEqual(
+      ["DOSSIER", "DÉSIGNATION", "TYPE", "MARQUE", "MODÈLE", "TYPE MINE", "PRIX UNITAIRE", "DATE DU PRIX"]);
   });
 
   it("transmet les filtres au serveur", async () => {
@@ -41,9 +42,12 @@ describe("analyse des prix", () => {
 
     fireEvent.change(screen.getByLabelText("Type de pièce"), { target: { value: "ORIGINE" } });
     fireEvent.change(screen.getByLabelText("Marque"), { target: { value: "Renault" } });
-    fireEvent.change(screen.getByLabelText("Rechercher une pièce"), { target: { value: " phare " } });
+    fireEvent.change(screen.getByLabelText("Modèle"), { target: { value: "Clio" } });
+    fireEvent.change(screen.getByLabelText("Type mine"), { target: { value: "BJA" } });
+    fireEvent.change(screen.getByLabelText("Désignation de la pièce"), { target: { value: "phare" } });
 
-    await waitFor(() => expect(serveur.history.get.at(-1)?.params).toEqual({ q: "phare", type: "ORIGINE", marque: "Renault" }));
+    await waitFor(() => expect(serveur.history.get.filter((r) => r.url === "/statistiques/prix").at(-1)?.params)
+      .toEqual({ designation: "phare", type: "ORIGINE", marque: "Renault", modele: "Clio", typeMine: "BJA", page: 0, taille: 25 }));
   });
 
   it("ouvre le dossier d'origine d'un prix", async () => {

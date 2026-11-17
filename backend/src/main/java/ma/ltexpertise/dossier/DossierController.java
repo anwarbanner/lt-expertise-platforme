@@ -93,20 +93,20 @@ public class DossierController {
     }
 
     @PutMapping("/{numero}")
-    @PreAuthorize("hasRole('GESTIONNAIRE')")
+    @PreAuthorize("hasAnyRole('GESTIONNAIRE', 'ADMINISTRATEUR')")
     public DossierDetail modifier(@PathVariable String numero, @Valid @RequestBody DossierModification modification) {
         return service.modifier(numero, modification, utilisateurCourant.obtenir());
     }
 
     @PostMapping("/{numero}/validation")
-    @PreAuthorize("hasRole('GESTIONNAIRE')")
+    @PreAuthorize("hasAnyRole('GESTIONNAIRE', 'ADMINISTRATEUR')")
     public DossierDetail valider(@PathVariable String numero) {
         return service.valider(numero, utilisateurCourant.obtenir());
     }
 
     /** Validation en lot (P3) : dossiers cochés, ou tous les prêts à valider répondant aux filtres. */
     @PostMapping("/validation-groupee")
-    @PreAuthorize("hasRole('GESTIONNAIRE')")
+    @PreAuthorize("hasAnyRole('GESTIONNAIRE', 'ADMINISTRATEUR')")
     public ResultatValidationGroupee validerEnLot(@RequestBody ValidationGroupee demande) {
         return service.validerEnLot(demande, utilisateurCourant.obtenir());
     }

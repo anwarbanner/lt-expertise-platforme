@@ -23,8 +23,11 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -242,6 +245,10 @@ class DossierApiIntegrationTest {
         mvc.perform(get("/api/statistiques/tableau-de-bord"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.dossiers", greaterThanOrEqualTo(2)))
+                .andExpect(jsonPath("$.montantTotal").value(nullValue()))
+                .andExpect(jsonPath("$.coutMoyen").value(nullValue()))
+                .andExpect(jsonPath("$.mensuel[*].montant", everyItem(nullValue())))
+                .andExpect(jsonPath("$.derniersDossiers[*].montantIndemnisation", everyItem(nullValue())))
                 .andExpect(jsonPath("$.mensuel.length()").value(12))
                 .andExpect(jsonPath("$.parZone[*].cle", hasItem("4")))
                 .andExpect(jsonPath("$.parCompagnie[*].cle", hasItem("COMPAGNIE TEST")))
@@ -251,10 +258,42 @@ class DossierApiIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.periode").value("2026-10"))
                 .andExpect(jsonPath("$.mensuel[11].mois").value("2026-10"));
-        mvc.perform(get("/api/statistiques/prix").param("type", "REEMPLOI"))
+        mvc.perform(get("/api/statistiques/prix").param("designation", "pp et").param("marque", "marq")
+                        .param("modele", "MODELE").param("typeMine", "modele"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.compagnies", hasItem("COMPAGNIE TEST")))
-                .andExpect(jsonPath("$.marques", hasItem("MARQUE")));
+                .andExpect(jsonPath("$.nombre").isNumber())
+                .andExpect(jsonPath("$.lignes").isArray());
+        mvc.perform(get("/api/statistiques/prix").param("taille", "1").param("tri", "prix,desc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.taille").value(1))
+                .andExpect(jsonPath("$.lignes.length()", lessThanOrEqualTo(1)));
+    }
+
+    @Test
+    @WithMockUser(username = "gestionnaire", roles = "GESTIONNAIRE")
+    void p9_leGestionnaireNeVoitPasLesMontantsDuTableauDeBord() throws Exception {
+        importer(RapportPdfFactice.numero(nouveauNumero()));
+
+        mvc.perform(get("/api/statistiques/tableau-de-bord"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.montantTotal").value(nullValue()))
+                .andExpect(jsonPath("$.derniersDossiers[*].montantIndemnisation", everyItem(nullValue())))
+                .andExpect(jsonPath("$.alertes").isArray());
+    }
+
+    @Test
+    @WithMockUser(username = "admin", roles = "ADMINISTRATEUR")
+    void lAdministrateurVoitLesMontantsEtValide() throws Exception {
+        String numero = importer(RapportPdfFactice.numero(nouveauNumero()));
+
+        mvc.perform(get("/api/statistiques/tableau-de-bord"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.montantTotal").isNumber())
+                .andExpect(jsonPath("$.derniersDossiers[0].montantIndemnisation").isNumber());
+        mvc.perform(post("/api/dossiers/{numero}/validation", numero))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.statut").value("VALIDE"))
+                .andExpect(jsonPath("$.validePar").value("admin"));
     }
 
     // ------------------------------------------------------------------ comptes et journal

@@ -1,6 +1,7 @@
 import type {
   AnalysePrix, CompteUtilisateur, DossierDetail, DossierModification, DossierResume, EntreeJournal,
-  EvenementHistorique, Page, ResultatValidationGroupee, TableauDeBord, ValidationGroupee,
+  EvenementHistorique, FiltresPieces, FiltresPrix, FiltresValeurs, Page, ResultatPieces, ResultatValeurs,
+  ResultatValidationGroupee, SuggestionsVehicule, TableauDeBord, ValidationGroupee,
 } from "@/domain/dossiers";
 import type { Role, StatutDossier } from "@/domain/referentiels";
 import { api } from "./client";
@@ -32,6 +33,9 @@ export const cles = {
   historique: (numero: string) => ["dossiers", "historique", numero] as const,
   tableauDeBord: (periode: string) => ["statistiques", "tableau-de-bord", periode] as const,
   prix: (filtres: object) => ["statistiques", "prix", filtres] as const,
+  suggestions: ["recherche", "suggestions"] as const,
+  pieces: (filtres: object) => ["recherche", "pieces", filtres] as const,
+  valeurs: (filtres: object) => ["recherche", "valeurs", filtres] as const,
   utilisateurs: ["utilisateurs"] as const,
   journal: (filtres: object) => ["journal", filtres] as const,
   pdf: (importId: number) => ["pdf", importId] as const,
@@ -79,8 +83,23 @@ export async function tableauDeBord(periode: string) {
   return (await api.get<TableauDeBord>("/statistiques/tableau-de-bord", { params: nettoyer({ periode }) })).data;
 }
 
-export async function analysePrix(filtres: { q?: string; type?: string; compagnie?: string; marque?: string }) {
-  return (await api.get<AnalysePrix>("/statistiques/prix", { params: nettoyer(filtres) })).data;
+/** Paramètres d'un tableau paginé côté serveur (page, taille, tri, f_<colonne>), voir parametresTableau. */
+type ParametresTableau = Record<string, string | number>;
+
+export async function analysePrix(filtres: FiltresPrix, tableau: ParametresTableau = {}) {
+  return (await api.get<AnalysePrix>("/statistiques/prix", { params: nettoyer({ ...filtres, ...tableau }) })).data;
+}
+
+export async function suggestionsVehicule() {
+  return (await api.get<SuggestionsVehicule>("/recherche/suggestions")).data;
+}
+
+export async function rechercherPieces(filtres: FiltresPieces, tableau: ParametresTableau = {}) {
+  return (await api.get<ResultatPieces>("/recherche/pieces", { params: nettoyer({ ...filtres, ...tableau }) })).data;
+}
+
+export async function rechercherValeurs(filtres: FiltresValeurs, tableau: ParametresTableau = {}) {
+  return (await api.get<ResultatValeurs>("/recherche/valeurs", { params: nettoyer({ ...filtres, ...tableau }) })).data;
 }
 
 export async function utilisateurs() {

@@ -66,25 +66,29 @@ describe("routes protégées", () => {
     [ROUTES.imports, CONSULTANT],
     [ROUTES.verification("268202-0313"), CONSULTANT],
     [ROUTES.utilisateurs, GESTIONNAIRE],
-    [ROUTES.imports, ADMINISTRATEUR],
+    [ROUTES.utilisateurs, CONSULTANT],
   ])("%s est refusé au rôle %o", async (adresse, utilisateur) => {
     rendreApplication(adresse, utilisateur);
 
     expect(await titre("Accès refusé")).toBeTruthy();
   });
 
-  it("l'administrateur accède aux utilisateurs", async () => {
-    rendreApplication(ROUTES.utilisateurs, ADMINISTRATEUR);
+  it.each([
+    [ROUTES.utilisateurs, "Utilisateurs"],
+    [ROUTES.imports, "Importer des rapports"],
+    [ROUTES.verification("268202-0313"), "Vérification du dossier 268202-0313"],
+  ])("l'administrateur, qui a tous les droits, accède à %s", async (adresse, nom) => {
+    rendreApplication(adresse, ADMINISTRATEUR);
 
-    expect(await titre("Utilisateurs")).toBeTruthy();
+    expect(await titre(nom)).toBeTruthy();
   });
 });
 
 describe("mise en page commune", () => {
   it.each([
-    [GESTIONNAIRE, ["Tableau de bord", "Importer des rapports", "Dossiers", "Analyse des prix", "Génération des rapports"]],
-    [CONSULTANT, ["Tableau de bord", "Dossiers", "Analyse des prix", "Génération des rapports"]],
-    [ADMINISTRATEUR, ["Tableau de bord", "Dossiers", "Analyse des prix", "Génération des rapports", "Utilisateurs"]],
+    [GESTIONNAIRE, ["Tableau de bord", "Importer des rapports", "Dossiers", "Analyse des prix", "Recherche de pièces", "Valeur vénale / achat", "Génération des rapports"]],
+    [CONSULTANT, ["Tableau de bord", "Dossiers", "Analyse des prix", "Recherche de pièces", "Valeur vénale / achat", "Génération des rapports"]],
+    [ADMINISTRATEUR, ["Tableau de bord", "Importer des rapports", "Dossiers", "Analyse des prix", "Recherche de pièces", "Valeur vénale / achat", "Génération des rapports", "Utilisateurs"]],
   ])("le menu de %o ne propose que ses écrans", async (utilisateur, entrees) => {
     rendreApplication(ROUTES.tableauDeBord, utilisateur);
 

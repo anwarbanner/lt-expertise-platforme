@@ -29,14 +29,24 @@ class RapportExpertiseTest {
         assertThat(r.getValideLe()).isEqualTo(MAINTENANT);
     }
 
-    @ParameterizedTest
-    @EnumSource(value = Role.class, names = {"ADMINISTRATEUR", "CONSULTATION"})
-    void seulUnGestionnairePeutValider(Role role) {
+    @Test
+    void unConsultantNePeutPasValider() {
         RapportExpertise r = new RapportExpertise("268202-0011", StatutDossier.A_VERIFIER);
 
-        assertThatThrownBy(() -> r.valider(JeuDeDonnees.utilisateur("u", role), MAINTENANT))
+        assertThatThrownBy(() -> r.valider(JeuDeDonnees.utilisateur("u", Role.CONSULTATION), MAINTENANT))
                 .isInstanceOf(ValidationRefuseeException.class);
         assertThat(r.getStatut()).isEqualTo(StatutDossier.A_VERIFIER);
+    }
+
+    @Test
+    void lAdministrateurPeutValider() {
+        Utilisateur admin = JeuDeDonnees.utilisateur("admin", Role.ADMINISTRATEUR);
+        RapportExpertise r = new RapportExpertise("268202-0013", StatutDossier.A_VERIFIER);
+
+        r.valider(admin, MAINTENANT);
+
+        assertThat(r.getStatut()).isEqualTo(StatutDossier.VALIDE);
+        assertThat(r.getValidePar()).isSameAs(admin);
     }
 
     @Test

@@ -45,7 +45,7 @@ export const TABLEAU_VIDE: TableauDeBord = {
 };
 
 export const PRIX_VIDE: AnalysePrix = {
-  nombre: 0, minimum: null, moyenne: null, maximum: null, moyenneParType: {}, lignes: [], compagnies: [], marques: [],
+  nombre: 0, minimum: null, moyenne: null, maximum: null, moyenneParType: {}, lignes: [], page: 0, taille: 25,
 };
 
 export function compte(identifiant: string, autres: Partial<CompteUtilisateur> = {}): CompteUtilisateur {
@@ -70,6 +70,9 @@ export function simulerApi(surcharges: (serveur: MockAdapter) => void = () => {}
   serveur.onGet("/dossiers").reply(200, page(dossiers, 0, 10));
   serveur.onGet("/statistiques/tableau-de-bord").reply(200, TABLEAU_VIDE);
   serveur.onGet("/statistiques/prix").reply(200, PRIX_VIDE);
+  serveur.onGet("/recherche/suggestions").reply(200, { marques: [], modeles: [], typesMine: [] });
+  serveur.onGet("/recherche/pieces").reply(200, { nombre: 0, lignes: [], page: 0, taille: 25 });
+  serveur.onGet("/recherche/valeurs").reply(200, { nombre: 0, moyenneAchat: null, moyenneVenale: null, lignes: [], page: 0, taille: 25 });
   serveur.onGet("/utilisateurs").reply(200, []);
   serveur.onGet("/journal-audit").reply(200, page([]));
   serveur.onGet("/rapports/historique").reply(200, []);

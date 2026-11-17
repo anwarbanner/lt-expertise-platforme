@@ -1,5 +1,6 @@
 // Lot 6 : rapport PDF régénéré (F9, P10), exports Excel et historique des rapports générés (backend : generation).
 import axios from "axios";
+import type { FiltresPrix } from "@/domain/dossiers";
 import type { FiltresDossiers } from "./dossiers";
 import { api } from "./client";
 
@@ -71,7 +72,7 @@ export const exporterListe = (filtres: FiltresDossiers) => {
   const { page: _page, sort: _sort, ...criteres } = filtres;
   return telecharger("/exports/dossiers", criteres, "dossiers.xlsx");
 };
-export const exporterPrix = (filtres: { q?: string; type?: string; compagnie?: string; marque?: string }) => telecharger("/exports/prix", filtres, "analyse-prix.xlsx");
+export const exporterPrix = (filtres: FiltresPrix) => telecharger("/exports/prix", filtres, "analyse-prix.xlsx");
 export const exporterJournal = (filtres: { q?: string; action?: string }) => telecharger("/journal-audit/export", filtres, "journal-audit.xlsx");
 
 export async function historiqueRapports(limite = 20) {

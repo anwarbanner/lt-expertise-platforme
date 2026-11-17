@@ -45,6 +45,8 @@ export const LIBELLES_PROCEDURE: Record<TypeProcedure, string> = {
 export type NatureRapport = "DEFINITIF" | "NON_DEFINITIF" | "REFORME";
 export type NatureContrat = "RC" | "ASSURANCE_DOMMAGE";
 export type TypePiece = "ORIGINE" | "ADAPTABLE" | "REEMPLOI";
+
+export const LIBELLES_TYPE_PIECE: Record<TypePiece, string> = { ORIGINE: "Origine", ADAPTABLE: "Adaptable", REEMPLOI: "Réemploi" };
 export type TypeOperation = "ECHANGE" | "REPARATION";
 export type Role = "ADMINISTRATEUR" | "GESTIONNAIRE" | "CONSULTATION";
 

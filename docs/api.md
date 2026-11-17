@@ -45,8 +45,23 @@ Documentation interactive : `http://localhost:8080/swagger-ui.html` (OpenAPI : `
 
 | Méthode | Route | Rôle | Description |
 |---|---|---|---|
-| GET | `/statistiques/tableau-de-bord?periode=AAAA-MM` | tous | Indicateurs, répartitions par statut, zone, compagnie, mensuel sur 12 mois, alertes, derniers dossiers |
-| GET | `/statistiques/prix?q=&type=&compagnie=&marque=` | tous | Analyse des prix unitaires (min, moyenne, max, par type O/A/R, 200 lignes les plus récentes) |
+| GET | `/statistiques/tableau-de-bord?periode=AAAA-MM` | tous | Indicateurs, répartitions par statut, zone, compagnie, mensuel sur 12 mois, alertes, derniers dossiers. Montants à `null` sauf pour l'administrateur (P9) |
+| GET | `/statistiques/prix?designation=&type=&marque=&modele=&typeMine=` | tous | Analyse des prix unitaires (min, moyenne, max et par type O/A/R sur toutes les lignes filtrées ; détail paginé). Filtres texte : « contient », sans casse |
+
+## Recherches — `/api/recherche`
+
+Les trois tableaux de recherche (`/statistiques/prix`, `/recherche/pieces`, `/recherche/valeurs`) sont paginés en
+base : `page` (à partir de 0), `taille` (25 par défaut, 200 au plus), `tri=<colonne>,asc|desc`, et un filtre par
+colonne `f_<colonne>=texte` (cherché dans la valeur affichée, sans casse, accents ni espaces). Réponse : `nombre`
+(total filtré), `page`, `taille`, `lignes` (la page). Colonnes : prix `dossier designation type marque modele
+typeMine prix date` ; pièces `dossier piece type zone marque modele typeMine mec chassis prix date` ; valeurs
+`dossier marque modele typeMine dmec sinistre age achat venale`.
+
+| Méthode | Route | Rôle | Description |
+|---|---|---|---|
+| GET | `/recherche/suggestions` | tous | Marques, modèles et types mine présents dans les dossiers (suggestions des filtres) |
+| GET | `/recherche/pieces?piece=&type=&zone=&marque=&modele=&typeMine=&annee=&chassis=` | tous | Pièces des rapports (lignes typées O/A/R) ; `annee` = année de MEC, `chassis` = n° de série |
+| GET | `/recherche/valeurs?marque=&modele=&typeMine=&mecDu=&mecAu=&ageMin=&ageMax=&achatMin=&achatMax=&venaleMin=&venaleMax=` | tous | Valeur d'achat (valeur à neuf) et valeur vénale lues dans le commentaire ; âge en mois de la DMEC à la date du sinistre |
 
 ## Génération et exports (lot 6)
 
@@ -56,7 +71,7 @@ Documentation interactive : `http://localhost:8080/swagger-ui.html` (OpenAPI : `
 | GET | `/rapports/historique?limite=20` | tous | Derniers rapports générés (date, auteur, dossier, assuré, compagnie) |
 | GET | `/exports/dossiers/{numero}` | tous | Classeur Excel d'un dossier |
 | GET | `/exports/dossiers` | tous | Classeur Excel de **toute** la liste répondant aux filtres (mêmes paramètres que `GET /dossiers`, sans pagination) |
-| GET | `/exports/prix?q=&type=&compagnie=&marque=` | tous | Classeur Excel de toutes les lignes de prix + synthèse |
+| GET | `/exports/prix?designation=&type=&marque=&modele=&typeMine=` | tous | Classeur Excel de toutes les lignes de prix + synthèse |
 
 Les fichiers sont renvoyés en pièce jointe (`Content-Disposition`, nom de fichier proposé).
 

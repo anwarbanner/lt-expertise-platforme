@@ -52,6 +52,13 @@ lt:
     # Comptes admin / gestionnaire / consultant créés si la base ne contient aucun utilisateur
     mot-de-passe-initial: ${LT_MOT_DE_PASSE_INITIAL:LtExpertise-Dev-2026}
 
+# Documentation de l'API (/swagger-ui.html, /v3/api-docs) : utile en développement, désactivée en production (Docker)
+springdoc:
+  api-docs:
+    enabled: ${LT_DOC_API:true}
+  swagger-ui:
+    enabled: ${LT_DOC_API:true}
+
 management:
   endpoints:
     web:

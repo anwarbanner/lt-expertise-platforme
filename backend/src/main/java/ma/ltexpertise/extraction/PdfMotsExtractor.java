@@ -16,11 +16,18 @@ import java.util.List;
  * <p>Un mot se termine sur un espace ou sur un écart horizontal entre deux glyphes : le gabarit TCPDF
  * juxtapose des cellules sans espace (« DésignationType » dans certains rapports), qu'un découpage sur
  * les seuls espaces fusionnerait.
+ *
+ * <p>La police des données des rapports TCPDF associe la lettre J au caractère « Ã » (table ToUnicode erronée :
+ * « JEAN » est lu « ÃEAN », un châssis « TMAJ… » est lu « TMAÃ… ») ; « Ã » n'existant dans aucun mot français
+ * ni dans un châssis ou une immatriculation, il est rétabli en J à la lecture.
  */
 public class PdfMotsExtractor {
 
     /** Écart vertical maximal entre deux mots d'une même ligne, en points (comme le prototype Python). */
     public static final double TOLERANCE_LIGNE = 2.5;
+
+    /** Caractère produit par la police des rapports à la place de la lettre J. */
+    private static final String J_MAL_DECODE = "Ã";
 
     /** Écart horizontal, en fraction de la taille de police, au-delà duquel deux glyphes appartiennent à deux mots. */
     private static final double ECART_ENTRE_MOTS = 0.15;
@@ -61,7 +68,7 @@ public class PdfMotsExtractor {
             double fin = 0;
             double y = 0;
             for (TextPosition glyphe : ligne) {
-                String caractere = glyphe.getUnicode();
+                String caractere = corriger(glyphe.getUnicode());
                 boolean blanc = caractere == null || caractere.isBlank();
                 double ecart = glyphe.getXDirAdj() - fin;
                 boolean coupure = blanc || (!texte.isEmpty() && ecart > ECART_ENTRE_MOTS * taillePolice(glyphe));
@@ -113,6 +120,10 @@ public class PdfMotsExtractor {
         }
         lignes.sort(Comparator.comparingDouble(Ligne::y));
         return lignes;
+    }
+
+    static String corriger(String caractere) {
+        return J_MAL_DECODE.equals(caractere) ? "J" : caractere;
     }
 
     private static double centreY(TextPosition glyphe) {

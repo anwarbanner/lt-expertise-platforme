@@ -13,7 +13,7 @@ signalées.
 | À vérifier | Un **contrôle bloquant** échoue | Calculé après import et après chaque modification |
 | À compléter | Une **donnée essentielle** manque | Idem |
 | Prêt à valider | Aucun blocage : en attente d'un gestionnaire | Idem |
-| Validé | Validé par un gestionnaire (P3), jamais automatiquement | Action « Valider », unitaire ou en lot |
+| Validé | Validé par un gestionnaire ou un administrateur (P3), jamais automatiquement | Action « Valider », unitaire ou en lot |
 | Archivé | Dossier clos | Prévu |
 
 Le statut est recalculé à chaque enregistrement de l'écran de vérification.
@@ -92,7 +92,7 @@ Une phrase absente ne produit pas de valeur. Le texte complet du commentaire res
 
 ## Validation (P3)
 
-- Seul un gestionnaire actif valide ; seul un dossier « Prêt à valider » peut l'être ; un rapport non définitif ne
+- Seul un gestionnaire ou un administrateur actif valide (l'administrateur a tous les droits) ; seul un dossier « Prêt à valider » peut l'être ; un rapport non définitif ne
   se valide pas.
 - **En lot** : les dossiers cochés, ou tous les dossiers prêts répondant aux filtres de la liste. Traitement par
   paquets de 500, chacun dans sa propre transaction ; les dossiers non prêts sont ignorés avec leur motif.

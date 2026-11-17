@@ -1,9 +1,11 @@
 package ma.ltexpertise.statistiques;
 
+import ma.ltexpertise.commun.Tableau;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -109,33 +111,39 @@ public class ServiceStatistiques {
                 parCompagnie, alertes, dossiersEnAnomalie, derniers);
     }
 
-    /** Prix unitaires des pièces (lignes de détail typées O, A ou R, prix positif), filtrables (analyse des prix). */
-    @Transactional(readOnly = true)
-    public AnalysePrix prix(String q, String typePiece, String compagnie, String marque) {
-        return prix(q, typePiece, compagnie, marque, 200);
-    }
+    /** Libellés affichés des types de pièce, filtrés par les colonnes « Type » des tableaux. */
+    public static final Map<String, String> LIBELLES_TYPE_PIECE = Map.of(
+            "ORIGINE", "Origine", "ADAPTABLE", "Adaptable", "REEMPLOI", "Réemploi");
 
-    /** Idem, avec au plus {@code limite} lignes de détail (les plus récentes) : 200 à l'écran, toutes à l'export. */
+    /** Colonnes du tableau de l'analyse des prix (clés partagées avec l'écran). */
+    static final Map<String, Tableau.Colonne> COLONNES_PRIX = Map.of(
+            "dossier", Tableau.Colonne.simple("r.numero_rapport"),
+            "designation", Tableau.Colonne.simple("l.designation"),
+            "type", Tableau.Colonne.libelles("l.type_piece", LIBELLES_TYPE_PIECE),
+            "marque", Tableau.Colonne.simple("v.marque"),
+            "modele", Tableau.Colonne.simple("v.modele"),
+            "typeMine", Tableau.Colonne.simple("v.type_mine"),
+            "prix", Tableau.Colonne.montant("l.prix_unitaire"),
+            "date", Tableau.Colonne.date(DATE_DOSSIER));
+
+    /**
+     * Prix unitaires des pièces (lignes de détail typées O, A ou R, prix positif), filtrables par désignation, type
+     * de pièce et véhicule (analyse des prix), puis par colonne du tableau. Les indicateurs portent sur toutes les
+     * lignes filtrées, le détail sur la page demandée. Les filtres texte cherchent la valeur saisie n'importe où.
+     */
     @Transactional(readOnly = true)
-    public AnalysePrix prix(String q, String typePiece, String compagnie, String marque, int limite) {
-        MapSqlParameterSource p = new MapSqlParameterSource().addValue("limite", limite);
+    public AnalysePrix prix(FiltresPrix f, Tableau tableau) {
+        MapSqlParameterSource p = new MapSqlParameterSource();
         StringBuilder filtre = new StringBuilder(" where l.prix_unitaire > 0 and l.type_piece is not null");
-        if (q != null && !q.isBlank()) {
-            filtre.append(" and l.designation ilike :q");
-            p.addValue("q", "%" + q.strip() + "%");
-        }
-        if (typePiece != null && !typePiece.isBlank()) {
+        contient(filtre, p, "l.designation", "designation", f.designation());
+        if (f.type() != null && !f.type().isBlank()) {
             filtre.append(" and l.type_piece = :type");
-            p.addValue("type", typePiece);
+            p.addValue("type", f.type());
         }
-        if (compagnie != null && !compagnie.isBlank()) {
-            filtre.append(" and r.compagnie = :compagnie");
-            p.addValue("compagnie", compagnie);
-        }
-        if (marque != null && !marque.isBlank()) {
-            filtre.append(" and v.marque = :marque");
-            p.addValue("marque", marque);
-        }
+        contient(filtre, p, "v.marque", "marque", f.marque());
+        contient(filtre, p, "v.modele", "modele", f.modele());
+        contient(filtre, p, "v.type_mine", "typeMine", f.typeMine());
+        tableau.filtrer(filtre, p, COLONNES_PRIX);
         String depuis = " from ligne_detail l join rapport_expertise r on r.id = l.rapport_id "
                 + "left join vehicule v on v.rapport_id = r.id";
 
@@ -146,20 +154,25 @@ public class ServiceStatistiques {
                 + "order by l.type_piece", p, rs -> {
             moyenneParType.put(rs.getString("type_piece"), rs.getBigDecimal("moyen").setScale(2, RoundingMode.HALF_UP));
         });
-        List<LignePrix> lignes = jdbc.query("select l.designation, l.type_piece, r.compagnie, v.marque, v.modele, "
-                + "l.prix_unitaire, l.vetuste_pct, r.numero_rapport, " + DATE_DOSSIER + " as date_dossier" + depuis + filtre
-                + " order by date_dossier desc, l.designation limit :limite", p,
-                (rs, i) -> new LignePrix(rs.getString("designation"), rs.getString("type_piece"),
-                        rs.getString("compagnie"), rs.getString("marque"), rs.getString("modele"),
-                        rs.getBigDecimal("prix_unitaire"), rs.getBigDecimal("vetuste_pct"),
-                        rs.getString("numero_rapport"), rs.getObject("date_dossier", LocalDate.class)));
-        List<String> compagnies = jdbc.queryForList("select distinct r.compagnie from rapport_expertise r "
-                + "where r.compagnie is not null order by 1", new MapSqlParameterSource(), String.class);
-        List<String> marques = jdbc.queryForList("select distinct v.marque from vehicule v where v.marque is not null "
-                + "order by 1", new MapSqlParameterSource(), String.class);
+        List<LignePrix> lignes = jdbc.query("select r.numero_rapport, l.designation, l.type_piece, v.marque, v.modele, "
+                + "v.type_mine, l.prix_unitaire, " + DATE_DOSSIER + " as date_dossier" + depuis + filtre
+                + tableau.ordre(COLONNES_PRIX, DATE_DOSSIER + " desc, l.designation, l.id") + tableau.limite(p), p,
+                (rs, i) -> new LignePrix(rs.getString("numero_rapport"), rs.getString("designation"),
+                        rs.getString("type_piece"), rs.getString("marque"), rs.getString("modele"),
+                        rs.getString("type_mine"), rs.getBigDecimal("prix_unitaire"),
+                        rs.getObject("date_dossier", LocalDate.class)));
 
         return new AnalysePrix(((Number) agregats.get("n")).longValue(), arrondi(agregats.get("mini")),
-                arrondi(agregats.get("moyen")), arrondi(agregats.get("maxi")), moyenneParType, lignes, compagnies, marques);
+                arrondi(agregats.get("moyen")), arrondi(agregats.get("maxi")), moyenneParType, lignes,
+                tableau.page(), tableau.taille());
+    }
+
+    /** Ajoute « colonne contient valeur » (sans casse) si la valeur est renseignée. */
+    public static void contient(StringBuilder filtre, MapSqlParameterSource p, String colonne, String nom, String valeur) {
+        if (valeur != null && !valeur.isBlank()) {
+            filtre.append(" and ").append(colonne).append(" ilike :").append(nom);
+            p.addValue(nom, "%" + valeur.strip() + "%");
+        }
     }
 
     private static BigDecimal arrondi(Object valeur) {
@@ -179,18 +192,32 @@ public class ServiceStatistiques {
                                  BigDecimal montantIndemnisation, String statut) {
     }
 
+    /** Les montants valent {@code null} dans la vue sans montants (rôles autres qu'administrateur, P9). */
     public record TableauDeBord(String periode, long dossiers, BigDecimal montantTotal, BigDecimal coutMoyen,
                                 long enAttenteValidation, Map<String, Long> parStatut, List<Mois> mensuel,
                                 List<Repartition> parZone, List<Repartition> parCompagnie, List<Alerte> alertes,
                                 long dossiersEnAnomalie, List<DernierDossier> derniersDossiers) {
+
+        /** Même tableau, sans aucun montant : seuls les nombres de dossiers restent. */
+        public TableauDeBord sansMontants() {
+            return new TableauDeBord(periode, dossiers, null, null, enAttenteValidation, parStatut,
+                    mensuel.stream().map(m -> new Mois(m.mois(), m.nombre(), null, null, null)).toList(),
+                    parZone, parCompagnie, alertes, dossiersEnAnomalie,
+                    derniersDossiers.stream().map(d -> new DernierDossier(d.numeroRapport(), d.importeLe(),
+                            d.compagnie(), null, d.statut())).toList());
+        }
     }
 
-    public record LignePrix(String designation, String typePiece, String compagnie, String marque, String modele,
-                            BigDecimal prixUnitaire, BigDecimal vetustePct, String numeroRapport, LocalDate date) {
+    /** @param date date du prix : celle du rapport, à défaut celle de l'import */
+    public record LignePrix(String numeroRapport, String designation, String typePiece, String marque, String modele,
+                            String typeMine, BigDecimal prixUnitaire, LocalDate date) {
     }
 
+    public record FiltresPrix(String designation, String type, String marque, String modele, String typeMine) {
+    }
+
+    /** @param lignes page {@code page} (à partir de 0) de {@code taille} lignes sur les {@code nombre} filtrées */
     public record AnalysePrix(long nombre, BigDecimal minimum, BigDecimal moyenne, BigDecimal maximum,
-                              Map<String, BigDecimal> moyenneParType, List<LignePrix> lignes,
-                              List<String> compagnies, List<String> marques) {
+                              Map<String, BigDecimal> moyenneParType, List<LignePrix> lignes, int page, int taille) {
     }
 }

@@ -194,19 +194,34 @@ export interface EvenementHistorique {
   details: Record<string, unknown> | null;
 }
 
+/** Montants à null hors administrateur : le serveur ne les transmet qu'à ce rôle (P9). */
 export interface TableauDeBord {
   periode: string | null;
   dossiers: number;
-  montantTotal: number;
+  montantTotal: number | null;
   coutMoyen: number | null;
   enAttenteValidation: number;
   parStatut: Partial<Record<StatutDossier, number>>;
-  mensuel: { mois: string; nombre: number; montant: number; mainOeuvreTtc: number; fournituresTtc: number }[];
+  mensuel: { mois: string; nombre: number; montant: number | null; mainOeuvreTtc: number | null; fournituresTtc: number | null }[];
   parZone: { cle: string; nombre: number }[];
   parCompagnie: { cle: string; nombre: number }[];
   alertes: { numeroRapport: string; incoherences: number; champsManquants: number; premierControle: string | null }[];
   dossiersEnAnomalie: number;
   derniersDossiers: { numeroRapport: string; importeLe: string; compagnie: string | null; montantIndemnisation: number | null; statut: StatutDossier }[];
+}
+
+export interface FiltresPrix { designation?: string; type?: string; marque?: string; modele?: string; typeMine?: string }
+
+export interface LignePrix {
+  numeroRapport: string;
+  designation: string;
+  typePiece: TypePiece;
+  marque: string | null;
+  modele: string | null;
+  typeMine: string | null;
+  prixUnitaire: number;
+  /** Date du prix : celle du rapport, à défaut celle de l'import. */
+  date: string | null;
 }
 
 export interface AnalysePrix {
@@ -215,10 +230,52 @@ export interface AnalysePrix {
   moyenne: number | null;
   maximum: number | null;
   moyenneParType: Partial<Record<TypePiece, number>>;
-  lignes: { designation: string; typePiece: TypePiece; compagnie: string | null; marque: string | null; modele: string | null; prixUnitaire: number; vetustePct: number | null; numeroRapport: string; date: string | null }[];
-  compagnies: string[];
-  marques: string[];
+  /** Page {@link page} (à partir de 0) de {@link taille} lignes sur les {@link nombre} filtrées. */
+  lignes: LignePrix[];
+  page: number;
+  taille: number;
 }
+
+/** Valeurs déjà rencontrées, proposées dans les filtres du véhicule. */
+export interface SuggestionsVehicule { marques: string[]; modeles: string[]; typesMine: string[] }
+
+export interface FiltresPieces { piece?: string; type?: string; zone?: string; marque?: string; modele?: string; typeMine?: string; annee?: string; chassis?: string }
+
+export interface LignePiece {
+  numeroRapport: string;
+  designation: string;
+  typePiece: TypePiece;
+  zoneChoc: number | null;
+  marque: string | null;
+  modele: string | null;
+  typeMine: string | null;
+  dateMiseCirculation: string | null;
+  numeroChassis: string | null;
+  prixUnitaire: number | null;
+  date: string | null;
+}
+
+export interface ResultatPieces { nombre: number; lignes: LignePiece[]; page: number; taille: number }
+
+/** Âges en mois ; valeurs d'achat (valeur à neuf) et vénale lues dans le commentaire de l'expert. */
+export interface FiltresValeurs {
+  marque?: string; modele?: string; typeMine?: string; mecDu?: string; mecAu?: string; ageMin?: string; ageMax?: string;
+  achatMin?: string; achatMax?: string; venaleMin?: string; venaleMax?: string;
+}
+
+export interface LigneValeur {
+  numeroRapport: string;
+  marque: string | null;
+  modele: string | null;
+  typeMine: string | null;
+  dateMiseCirculation: string | null;
+  dateSinistre: string | null;
+  ageMois: number | null;
+  valeurAchat: number | null;
+  valeurVenale: number | null;
+}
+
+export interface ResultatValeurs { nombre: number; moyenneAchat: number | null; moyenneVenale: number | null; lignes: LigneValeur[]; page: number; taille: number }
 
 export interface CompteUtilisateur {
   id: number;

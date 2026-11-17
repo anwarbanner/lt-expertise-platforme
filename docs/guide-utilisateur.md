@@ -96,8 +96,23 @@ l'historique des actions. Boutons :
 ## Analyse des prix
 
 Prix unitaires des pièces relevés dans les rapports : minimum, moyenne, maximum, moyenne par type (origine,
-adaptable, réemploi), détail des lignes. Filtres : désignation, type, compagnie, marque.
+adaptable, réemploi), détail des lignes. Filtres : désignation de la pièce, type, marque, modèle, type mine.
 **Exporter l'analyse** : toutes les lignes en Excel.
+
+Les tableaux de résultats (analyse des prix, recherche de pièces, valeur vénale / achat) se manipulent tous de la
+même façon : cliquer sur un en-tête trie la colonne (croissant, décroissant, puis ordre d'origine), faire glisser
+un en-tête le déplace (ou Alt + flèche gauche / droite au clavier), et la case sous chaque en-tête filtre la colonne.
+
+## Recherche de pièces
+
+Pièces relevées dans les rapports, filtrables par pièce, type, zone de choc, marque, modèle, type mine, année de
+mise en circulation (MEC) et numéro de châssis.
+
+## Valeur vénale / achat
+
+Valeur d'achat (valeur à neuf) et valeur vénale lues dans le commentaire de l'expert. Filtres : marque, modèle,
+type mine, DMEC (du / au), âge au sinistre (années et mois, de la DMEC à la date du sinistre), valeur d'achat et
+valeur vénale (minimum / maximum).
 
 ## Génération des rapports
 

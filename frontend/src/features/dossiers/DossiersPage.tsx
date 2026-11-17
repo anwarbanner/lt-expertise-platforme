@@ -1,3 +1,4 @@
+import { pagesAffichees } from "@/components/ui/Pagination";
 import { useEffect, useState } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router";
@@ -159,21 +160,11 @@ export default function DossiersPage() {
         <span>{nombre(page.number * page.size + 1)}–{nombre(Math.min((page.number + 1) * page.size, page.totalElements))} sur {nombre(page.totalElements)}</span>
         <div>
           <button disabled={page.number === 0} onClick={() => changer({ page: String(page.number - 1) })} aria-label="Page précédente">‹</button>
-          {pages(page.number, page.totalPages).map((p, i) => p === null ? <span key={`e${i}`}>…</span>
+          {pagesAffichees(page.number, page.totalPages).map((p, i) => p === null ? <span key={`e${i}`}>…</span>
             : <button key={p} className={p === page.number ? "active" : ""} onClick={() => changer({ page: String(p) })}>{p + 1}</button>)}
           <button disabled={page.number + 1 >= page.totalPages} onClick={() => changer({ page: String(page.number + 1) })} aria-label="Page suivante">›</button>
         </div>
       </div>}
     </article>
   </main>;
-}
-
-/** Numéros de pages affichés : première, dernière et voisines de la page courante. */
-function pages(courante: number, total: number): (number | null)[] {
-  const resultat: (number | null)[] = [];
-  for (let p = 0; p < total; p++) {
-    if (p === 0 || p === total - 1 || Math.abs(p - courante) <= 1) resultat.push(p);
-    else if (resultat[resultat.length - 1] !== null) resultat.push(null);
-  }
-  return resultat;
 }

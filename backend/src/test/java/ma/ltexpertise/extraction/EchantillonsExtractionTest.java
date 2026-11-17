@@ -5,6 +5,8 @@ import ma.ltexpertise.dossier.referentiel.CleCommentaire;
 import ma.ltexpertise.dossier.referentiel.NatureRapport;
 import ma.ltexpertise.dossier.referentiel.ZoneChoc;
 import ma.ltexpertise.importation.AnalyseurGabarit;
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDDocument;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
 
@@ -123,6 +125,30 @@ class EchantillonsExtractionTest {
                 montant(CleCommentaire.VALEUR_VENALE_FMA, "395820.00"),
                 texte(CleCommentaire.LOCALISATION_CHOC, "LAT ARD"),
                 texte(CleCommentaire.CADRE_EXPERTISE, "CLASSIQUE"));
+    }
+
+    /**
+     * La police des données décode J en « Ã » : aucun texte extrait ne doit garder ce caractère, et les châssis lus
+     * ne contiennent que les caractères d'un numéro VIN (chiffres et lettres sauf I, O, Q).
+     */
+    @Test
+    void laLettreJEstRetablieDansTousLesTextes() throws IOException {
+        List<String> anomalies = new ArrayList<>();
+        PdfMotsExtractor mots = new PdfMotsExtractor();
+        for (Path pdf : pdfs()) {
+            try (PDDocument document = Loader.loadPDF(pdf.toFile())) {
+                for (int page = 1; page <= document.getNumberOfPages(); page++) {
+                    if (mots.lignes(document, page).stream().anyMatch(l -> l.texte().contains("Ã"))) {
+                        anomalies.add(pdf.getFileName() + " : « Ã » page " + page);
+                    }
+                }
+            }
+            String chassis = extracteur.extraire(Files.readAllBytes(pdf)).getVehicule().getNumeroSerie();
+            if (chassis != null && !chassis.matches("[A-HJ-NPR-Z0-9]+")) {
+                anomalies.add(pdf.getFileName() + " : châssis hors caractères VIN");
+            }
+        }
+        assertThat(anomalies).isEmpty();
     }
 
     private List<Path> pdfs() throws IOException {

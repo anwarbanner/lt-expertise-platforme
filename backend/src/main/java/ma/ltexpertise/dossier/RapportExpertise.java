@@ -265,13 +265,14 @@ public class RapportExpertise {
     // ------------------------------------------------------------------ cycle de vie (P3, P6)
 
     /**
-     * Valide le dossier (P3). Seul un gestionnaire actif peut valider ; un rapport non définitif
-     * ne peut pas l'être.
+     * Valide le dossier (P3). Seul un gestionnaire ou un administrateur actif (qui a tous les droits) peut valider ;
+     * un rapport non définitif ne peut pas l'être.
      */
     public void valider(Utilisateur gestionnaire, OffsetDateTime maintenant) {
         Objects.requireNonNull(gestionnaire, "gestionnaire");
-        if (!gestionnaire.aLeRole(Role.GESTIONNAIRE) || !gestionnaire.isActif()) {
-            throw new ValidationRefuseeException("Seul un gestionnaire actif peut valider un dossier.");
+        boolean habilite = gestionnaire.aLeRole(Role.GESTIONNAIRE) || gestionnaire.aLeRole(Role.ADMINISTRATEUR);
+        if (!habilite || !gestionnaire.isActif()) {
+            throw new ValidationRefuseeException("Seul un gestionnaire ou un administrateur actif peut valider un dossier.");
         }
         if (natureRapport == NatureRapport.NON_DEFINITIF) {
             throw new ValidationRefuseeException("Un rapport non définitif ne peut pas être validé.");

@@ -62,7 +62,7 @@ public class ImportController {
      *         récapitulatif à suivre sur l'adresse de l'en-tête Location
      */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasRole('GESTIONNAIRE')")
+    @PreAuthorize("hasAnyRole('GESTIONNAIRE', 'ADMINISTRATEUR')")
     public ResponseEntity<RecapitulatifLot> importer(@RequestParam("fichiers") List<MultipartFile> fichiers) {
         if (fichiers.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Aucun fichier déposé.");

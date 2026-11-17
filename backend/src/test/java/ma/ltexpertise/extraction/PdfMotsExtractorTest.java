@@ -53,6 +53,15 @@ class PdfMotsExtractorTest {
     }
 
     @Test
+    void retablitLaLettreJLueCommeATilde() throws IOException {
+        // La police des rapports TCPDF décode J en « Ã »
+        PDType1Font police = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
+        byte[] pdf = pdf(contenu -> texte(contenu, police, 49, 100, "ÃEAN TMAÃB81 41789-Ã-77"));
+
+        assertThat(lignes(pdf).getFirst().texte()).isEqualTo("JEAN TMAJB81 41789-J-77");
+    }
+
+    @Test
     void conserveLesAccents() throws IOException {
         PDType1Font police = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
         byte[] pdf = pdf(contenu -> texte(contenu, police, 49, 100, "Évaluation des dommages"));

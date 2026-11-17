@@ -1,0 +1,96 @@
+# LT Expertise complète dans Docker : PostgreSQL, MinIO (PDF originaux), backend Spring Boot, interface nginx.
+#
+#   docker compose up -d --build        → application sur http://localhost:8088 (LT_PORT)
+#   docker compose up -d postgres minio → base et stockage seuls, pour développer avec mvn / pnpm dev
+#
+# Le nom de projet reprend celui de l'ancien docker-compose.dev.yml : les volumes de données existants
+# (ltexpertiseprojet_lt-expertise-pgdata, ..._minio) sont réutilisés tels quels.
+# Les ports ne sont publiés que sur 127.0.0.1 : rien n'est exposé au réseau (P11).
+# Variables : fichier .env à la racine (modèle : .env.example).
+name: ltexpertiseprojet
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: lt-expertise-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-lt_expertise}
+      POSTGRES_USER: ${DB_USER:-lt_expertise}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-lt_expertise_dev}
+      TZ: Africa/Casablanca
+    # Port 5433 sur l'hôte (5432 est souvent occupé par une installation locale de PostgreSQL)
+    ports:
+      - "127.0.0.1:${DB_PORT:-5433}:5432"
+    volumes:
+      - lt-expertise-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    # MinIO a retiré ses images communautaires de Docker Hub (le dépôt minio/minio n'existe plus).
+    # Image locale retaguée depuis une copie en cache : voir docs/conception/modele-donnees.md §2.7.
+    image: lt-expertise/minio:RELEASE.2025-09-07T16-13-09Z
+    pull_policy: never
+    container_name: lt-expertise-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-lt_expertise}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-lt_expertise_dev}
+    ports:
+      - "127.0.0.1:${MINIO_PORT:-9000}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - lt-expertise-minio:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    image: lt-expertise/backend:latest
+    container_name: lt-expertise-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-lt_expertise}
+      DB_USER: ${DB_USER:-lt_expertise}
+      DB_PASSWORD: ${DB_PASSWORD:-lt_expertise_dev}
+      LT_STOCKAGE_TYPE: minio
+      MINIO_URL: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-lt_expertise}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-lt_expertise_dev}
+      MINIO_BUCKET: ${MINIO_BUCKET:-rapports-originaux}
+      # Clé des jetons de connexion (≥ 32 caractères). Vide : clé aléatoire à chaque démarrage du conteneur.
+      LT_JWT_SECRET: ${LT_JWT_SECRET:-}
+      # true dès que l'application est servie en HTTPS
+      LT_COOKIE_SECURISE: ${LT_COOKIE_SECURISE:-false}
+      LT_MOT_DE_PASSE_INITIAL: ${LT_MOT_DE_PASSE_INITIAL:-LtExpertise-Dev-2026}
+      # Pas de documentation d'API publique hors développement
+      LT_DOC_API: ${LT_DOC_API:-false}
+    # Backend non publié : seul le conteneur frontend (nginx) lui parle, sur le réseau interne
+
+  frontend:
+    build: ./frontend
+    image: lt-expertise/frontend:latest
+    container_name: lt-expertise-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${LT_PORT:-8088}:80"
+
+volumes:
+  lt-expertise-pgdata:
+  lt-expertise-minio:

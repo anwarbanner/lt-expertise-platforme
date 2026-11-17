@@ -4,6 +4,7 @@ import ma.ltexpertise.audit.ActionAudit;
 import ma.ltexpertise.audit.JournalAudit;
 import ma.ltexpertise.audit.JournalAuditRepository;
 import ma.ltexpertise.commun.Montants;
+import ma.ltexpertise.commun.Tableau;
 import ma.ltexpertise.dossier.CriteresRecherche;
 import ma.ltexpertise.dossier.DossierDtos.ControleDto;
 import ma.ltexpertise.dossier.DossierDtos.DossierDetail;
@@ -151,14 +152,14 @@ public class ServiceExports {
 
     /** Toutes les lignes de prix répondant aux filtres (l'écran n'en affiche que les 200 plus récentes). */
     @Transactional
-    public byte[] prix(String q, String typePiece, String compagnie, String marque, Utilisateur auteur) {
-        ServiceStatistiques.AnalysePrix a = statistiques.prix(q, typePiece, compagnie, marque, LIGNES_PRIX_MAX);
+    public byte[] prix(ServiceStatistiques.FiltresPrix filtres, Utilisateur auteur) {
+        ServiceStatistiques.AnalysePrix a = statistiques.prix(filtres, Tableau.tout(LIGNES_PRIX_MAX));
         try (ClasseurExcel x = new ClasseurExcel()) {
-            ClasseurExcel.Feuille f = x.feuille("Analyse des prix", "Désignation", "Type", "Compagnie", "Marque", "Modèle",
-                    "Prix unitaire", "Vétusté %", "N° de rapport", "Date");
+            ClasseurExcel.Feuille f = x.feuille("Analyse des prix", "N° de rapport", "Désignation", "Type", "Marque",
+                    "Modèle", "Type mine", "Prix unitaire", "Date du prix");
             for (LignePrix l : a.lignes()) {
-                f.ligne(l.designation(), l.typePiece(), l.compagnie(), l.marque(), l.modele(), l.prixUnitaire(),
-                        l.vetustePct(), l.numeroRapport(), l.date());
+                f.ligne(l.numeroRapport(), l.designation(), l.typePiece(), l.marque(), l.modele(), l.typeMine(),
+                        l.prixUnitaire(), l.date());
             }
             f.ajuster();
             ClasseurExcel.Feuille synthese = x.feuille("Synthèse", "Indicateur", "Valeur");

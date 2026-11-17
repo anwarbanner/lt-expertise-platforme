@@ -5,6 +5,7 @@ import ma.ltexpertise.dossier.DossierIntrouvableException;
 import ma.ltexpertise.dossier.referentiel.StatutDossier;
 import ma.ltexpertise.generation.ServiceRapports.Generation;
 import ma.ltexpertise.generation.ServiceRapports.RapportGenere;
+import ma.ltexpertise.statistiques.ServiceStatistiques.FiltresPrix;
 import ma.ltexpertise.utilisateur.UtilisateurCourant;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ContentDisposition;
@@ -85,11 +86,13 @@ public class GenerationController {
     }
 
     @GetMapping("/exports/prix")
-    public ResponseEntity<byte[]> prix(@RequestParam(required = false) String q,
+    public ResponseEntity<byte[]> prix(@RequestParam(required = false) String designation,
                                        @RequestParam(required = false) String type,
-                                       @RequestParam(required = false) String compagnie,
-                                       @RequestParam(required = false) String marque) {
-        byte[] xlsx = exports.prix(q, type, compagnie, marque, utilisateurCourant.obtenir());
+                                       @RequestParam(required = false) String marque,
+                                       @RequestParam(required = false) String modele,
+                                       @RequestParam(required = false) String typeMine) {
+        byte[] xlsx = exports.prix(new FiltresPrix(designation, type, marque, modele, typeMine),
+                utilisateurCourant.obtenir());
         return fichier(xlsx, "analyse-prix-" + LocalDateTime.now().format(SUFFIXE) + ".xlsx", XLSX);
     }
 
