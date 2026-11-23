@@ -16,12 +16,15 @@ const LISTE = [
   dossierResume("268202-0001", "PRET_A_VALIDER"),
   dossierResume("268202-0002", "PRET_A_VALIDER"),
   dossierResume("268202-0003", "A_VERIFIER", { anomalies: 1 }),
+  dossierResume("268202-0004", "VALIDE"),
 ];
 
 function ouvrir(adresse: string = ROUTES.dossiers, utilisateur = GESTIONNAIRE) {
   serveur = simulerApi((s) => {
-    s.onGet("/dossiers").reply((config) => [200, config.params?.statut === "PRET_A_VALIDER" ? page(LISTE.slice(0, 2), 0, 1, 2) : page(LISTE, 0, 10)]);
+    s.onGet("/dossiers").reply((config) => [200, config.params?.statut === "PRET_A_VALIDER" ? page(LISTE.slice(0, 2), 0, 1, 2)
+      : config.params?.statut === "VALIDE" ? page(LISTE.slice(3), 0, 1, 1) : page(LISTE, 0, 10)]);
     s.onPost("/dossiers/validation-groupee").reply(200, { valides: 2, paquets: 1, ignores: [{ numeroRapport: "268202-0009", motif: "Déjà validé." }] });
+    s.onPost("/dossiers/archivage-groupe").reply(200, { archives: 1, paquets: 1, ignores: [] });
   });
   rendreApplication(adresse, utilisateur);
 }
@@ -54,12 +57,37 @@ describe("validation en lot", () => {
     expect(JSON.parse(serveur.history.post[0].data)).toEqual({ tousLesPrets: true, compagnie: "Wafa Assurance" });
   });
 
-  it("la case « page » coche tous les dossiers prêts de la page", async () => {
+  it("la case « page » coche tous les dossiers prêts et validés de la page", async () => {
     ouvrir();
 
-    fireEvent.click(await screen.findByLabelText("Cocher les dossiers prêts de la page"));
+    fireEvent.click(await screen.findByLabelText("Cocher les dossiers de la page (prêts et validés)"));
 
-    expect(screen.getByText("2 dossier(s) sélectionné(s)")).toBeTruthy();
+    expect(screen.getByText("3 dossier(s) sélectionné(s)")).toBeTruthy();
+  });
+
+  it("archive les dossiers validés cochés, sans envoyer les prêts", async () => {
+    ouvrir();
+
+    fireEvent.click(await screen.findByLabelText("Cocher 268202-0001"));
+    fireEvent.click(screen.getByLabelText("Cocher 268202-0004"));
+    fireEvent.click(screen.getByRole("button", { name: "Archiver la sélection (1)" }));
+    expect(screen.getByText(/Archiver 1 dossier\(s\) validé\(s\) \?/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Confirmer" }));
+
+    await waitFor(() => expect(serveur.history.post).toHaveLength(1));
+    expect(serveur.history.post[0].url).toBe("/dossiers/archivage-groupe");
+    expect(JSON.parse(serveur.history.post[0].data)).toEqual({ numeros: ["268202-0004"] });
+    expect(await screen.findByText("1 dossier(s) archivé(s)")).toBeTruthy();
+  });
+
+  it("archive tous les validés répondant aux filtres", async () => {
+    ouvrir(`${ROUTES.dossiers}?compagnie=Wafa%20Assurance`);
+
+    fireEvent.click(await screen.findByRole("button", { name: /Archiver tous les validés \(selon les filtres\) \(1\)/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirmer" }));
+
+    await waitFor(() => expect(serveur.history.post).toHaveLength(1));
+    expect(JSON.parse(serveur.history.post[0].data)).toEqual({ tousLesValides: true, compagnie: "Wafa Assurance" });
   });
 
   it("n'est pas proposée au consultant", async () => {

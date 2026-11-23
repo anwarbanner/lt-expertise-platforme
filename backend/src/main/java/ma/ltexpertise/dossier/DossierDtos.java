@@ -145,6 +145,16 @@ public final class DossierDtos {
     public record DossierIgnore(String numeroRapport, String motif) {
     }
 
+    /** Archivage en lot : les numéros cochés, ou tous les dossiers validés répondant aux filtres. */
+    public record ArchivageGroupe(List<String> numeros, boolean tousLesValides, String q, String compagnie,
+                                  Integer zone, LocalDate du, LocalDate au, BigDecimal montantMin,
+                                  BigDecimal montantMax) {
+    }
+
+    /** {@code paquets} : nombre de paquets de 500 dossiers traités, chacun dans sa propre transaction. */
+    public record ResultatArchivageGroupe(int archives, List<DossierIgnore> ignores, int paquets) {
+    }
+
     /** {@code paquets} : nombre de paquets de 500 dossiers traités, chacun dans sa propre transaction. */
     public record ResultatValidationGroupee(int valides, List<DossierIgnore> ignores, int paquets) {
     }

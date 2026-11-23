@@ -188,6 +188,11 @@ export interface ValidationGroupee {
 
 export interface ResultatValidationGroupee { valides: number; ignores: { numeroRapport: string; motif: string }[]; paquets: number }
 
+/** Archivage en lot : les numéros cochés (dossiers validés), ou tous les validés répondant aux filtres. */
+export type ArchivageGroupe = Omit<ValidationGroupee, "tousLesPrets"> & { tousLesValides?: boolean };
+
+export interface ResultatArchivageGroupe { archives: number; ignores: { numeroRapport: string; motif: string }[]; paquets: number }
+
 export interface EvenementHistorique {
   horodatage: string;
   action: string;

@@ -1,7 +1,7 @@
 import type {
-  AnalysePrix, CompteUtilisateur, DossierDetail, DossierModification, DossierResume, EntreeJournal,
+  AnalysePrix, ArchivageGroupe, CompteUtilisateur, DossierDetail, DossierModification, DossierResume, EntreeJournal,
   EvenementHistorique, FiltresPieces, FiltresPrix, FiltresValeurs, Page, ResultatPieces, ResultatValeurs,
-  ResultatValidationGroupee, SuggestionsVehicule, TableauDeBord, ValidationGroupee,
+  ResultatArchivageGroupe, ResultatValidationGroupee, SuggestionsVehicule, TableauDeBord, ValidationGroupee,
 } from "@/domain/dossiers";
 import type { Role, StatutDossier } from "@/domain/referentiels";
 import { api } from "./client";
@@ -64,6 +64,11 @@ export async function modifierDossier(numero: string, modification: DossierModif
 
 export async function validerDossier(numero: string) {
   return (await api.post<DossierDetail>(`/dossiers/${encodeURIComponent(numero)}/validation`)).data;
+}
+
+/** Archivage en lot (gestionnaire) : dossiers cochés, ou tous les validés répondant aux filtres. */
+export async function archiverEnLot(demande: ArchivageGroupe) {
+  return (await api.post<ResultatArchivageGroupe>("/dossiers/archivage-groupe", nettoyer(demande))).data;
 }
 
 /** Validation en lot (gestionnaire) : renvoie le nombre de dossiers validés et ceux ignorés avec leur motif. */

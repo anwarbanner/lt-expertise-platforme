@@ -14,7 +14,7 @@ signalées.
 | À compléter | Une **donnée essentielle** manque | Idem |
 | Prêt à valider | Aucun blocage : en attente d'un gestionnaire | Idem |
 | Validé | Validé par un gestionnaire ou un administrateur (P3), jamais automatiquement | Action « Valider », unitaire ou en lot |
-| Archivé | Dossier validé puis clos : consultable, compté dans les statistiques, ne se modifie plus | Action « Archiver » d'un gestionnaire ou d'un administrateur, sur un dossier validé |
+| Archivé | Dossier validé puis clos : consultable, compté dans les statistiques, ne se modifie plus | Action « Archiver » d’un gestionnaire ou d’un administrateur, sur un dossier validé (fiche), ou en lot depuis la liste : dossiers validés cochés ou tous les validés selon les filtres |
 | Annulé | Import erroné écarté (mauvais fichier, rapport d'un autre dossier…) | Action « Annuler l'import » d'un **administrateur**, motif obligatoire, tant que le dossier n'est pas validé |
 
 Le statut est recalculé à chaque enregistrement de l'écran de vérification, sauf pour un dossier archivé ou annulé qui

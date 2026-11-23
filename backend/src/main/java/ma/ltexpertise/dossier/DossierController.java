@@ -3,10 +3,12 @@ package ma.ltexpertise.dossier;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import ma.ltexpertise.dossier.DossierDtos.ArchivageGroupe;
 import ma.ltexpertise.dossier.DossierDtos.DossierDetail;
 import ma.ltexpertise.dossier.DossierDtos.DossierModification;
 import ma.ltexpertise.dossier.DossierDtos.DossierResume;
 import ma.ltexpertise.dossier.DossierDtos.EvenementHistorique;
+import ma.ltexpertise.dossier.DossierDtos.ResultatArchivageGroupe;
 import ma.ltexpertise.dossier.DossierDtos.ResultatValidationGroupee;
 import ma.ltexpertise.dossier.DossierDtos.ValidationGroupee;
 import ma.ltexpertise.dossier.referentiel.StatutDossier;
@@ -115,6 +117,13 @@ public class DossierController {
     @PreAuthorize("hasAnyRole('GESTIONNAIRE', 'ADMINISTRATEUR')")
     public DossierDetail archiver(@PathVariable String numero) {
         return service.archiver(numero, utilisateurCourant.obtenir());
+    }
+
+    /** Archivage en lot (P6) : dossiers cochés, ou tous les validés répondant aux filtres. */
+    @PostMapping("/archivage-groupe")
+    @PreAuthorize("hasAnyRole('GESTIONNAIRE', 'ADMINISTRATEUR')")
+    public ResultatArchivageGroupe archiverEnLot(@RequestBody ArchivageGroupe demande) {
+        return service.archiverEnLot(demande, utilisateurCourant.obtenir());
     }
 
     /** Annulation d'un import erroné (P6), réservée à l'administrateur, motif obligatoire. */

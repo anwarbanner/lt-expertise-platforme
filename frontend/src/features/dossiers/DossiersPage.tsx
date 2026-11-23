@@ -2,7 +2,7 @@ import { pagesAffichees } from "@/components/ui/Pagination";
 import { useEffect, useState } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router";
-import { cles, compagnies, compteursDossiers, rechercherDossiers, validerEnLot, type FiltresDossiers } from "@/api/dossiers";
+import { archiverEnLot, cles, compagnies, compteursDossiers, rechercherDossiers, validerEnLot, type FiltresDossiers } from "@/api/dossiers";
 import { messageErreur } from "@/api/client";
 import { exporterListe } from "@/api/exports";
 import { BoutonTelechargement } from "@/components/ui/BoutonTelechargement";
@@ -23,6 +23,11 @@ const TRANCHES: Record<string, [string, string, string]> = {
 };
 const ONGLETS: [string, StatutDossier | ""][] = [["Tous", ""], ["À compléter", "A_COMPLETER"], ["À vérifier", "A_VERIFIER"], ["Prêts à valider", "PRET_A_VALIDER"], ["Validés", "VALIDE"], ["Archivés", "ARCHIVE"], ["Annulés", "ANNULE"]];
 const FILTRES = ["q", "statut", "compagnie", "zone", "du", "au", "tranche", "anomalies"] as const;
+/** Statuts cochables pour une action en lot : validation (prêts) ou archivage (validés). */
+const STATUTS_COCHABLES: readonly StatutDossier[] = ["PRET_A_VALIDER", "VALIDE"];
+
+type DemandeLot = { action: "valider" | "archiver"; portee: "selection" | "tous" };
+type ResultatLot = { action: DemandeLot["action"]; nombre: number; ignores: { numeroRapport: string; motif: string }[]; paquets: number };
 
 /** Liste, recherche et filtres des dossiers (F7, F8). Les filtres vivent dans l'adresse (partageable, retour arrière). */
 export default function DossiersPage() {
@@ -48,29 +53,44 @@ export default function DossiersPage() {
   const compteurs = useQuery({ queryKey: cles.compteurs, queryFn: compteursDossiers });
   const listeCompagnies = useQuery({ queryKey: cles.compagnies, queryFn: compagnies });
 
-  // Validation en lot (gestionnaire) : dossiers cochés, ou tous les prêts à valider répondant aux filtres
+  // Actions en lot (gestionnaire) : valider les prêts, archiver les validés ; dossiers cochés ou tous selon les filtres
   const gestionnaire = peutAcceder(role, "verification");
   const queryClient = useQueryClient();
-  const [selection, setSelection] = useState<Set<string>>(new Set());
-  const [confirmation, setConfirmation] = useState<"selection" | "tous" | null>(null);
+  const [selection, setSelection] = useState<Map<string, StatutDossier>>(new Map());
+  const [confirmation, setConfirmation] = useState<DemandeLot | null>(null);
   const filtresLot = { q: filtres.q, compagnie: filtres.compagnie, zone: filtres.zone, du: filtres.du, au: filtres.au, montantMin: filtres.montantMin, montantMax: filtres.montantMax };
   const prets = useQuery({ queryKey: ["dossiers", "prets", filtresLot], queryFn: () => rechercherDossiers({ ...filtresLot, statut: "PRET_A_VALIDER" }, 1), enabled: gestionnaire });
+  const valides = useQuery({ queryKey: ["dossiers", "valides", filtresLot], queryFn: () => rechercherDossiers({ ...filtresLot, statut: "VALIDE" }, 1), enabled: gestionnaire });
+  const cochesDe = (statut: StatutDossier) => [...selection].filter(([, s]) => s === statut).map(([n]) => n);
+  const pretsCoches = cochesDe("PRET_A_VALIDER");
+  const validesCoches = cochesDe("VALIDE");
   const lot = useMutation({
-    mutationFn: (mode: "selection" | "tous") => validerEnLot(mode === "selection" ? { numeros: [...selection] } : { tousLesPrets: true, ...filtresLot }),
+    mutationFn: async ({ action, portee }: DemandeLot): Promise<ResultatLot> => {
+      if (action === "valider") {
+        const r = await validerEnLot(portee === "selection" ? { numeros: pretsCoches } : { tousLesPrets: true, ...filtresLot });
+        return { action, nombre: r.valides, ignores: r.ignores, paquets: r.paquets };
+      }
+      const r = await archiverEnLot(portee === "selection" ? { numeros: validesCoches } : { tousLesValides: true, ...filtresLot });
+      return { action, nombre: r.archives, ignores: r.ignores, paquets: r.paquets };
+    },
     onSuccess: () => {
-      setSelection(new Set());
+      setSelection(new Map());
       setConfirmation(null);
       void queryClient.invalidateQueries({ queryKey: ["dossiers"] });
       void queryClient.invalidateQueries({ queryKey: ["statistiques"] });
     },
   });
   const totalPrets = prets.data?.page.totalElements ?? 0;
-  const nombreLot = confirmation === "selection" ? selection.size : totalPrets;
-  const pretsDeLaPage = liste.data?.content.filter((d) => d.statut === "PRET_A_VALIDER").map((d) => d.numeroRapport) ?? [];
-  const toutCoche = pretsDeLaPage.length > 0 && pretsDeLaPage.every((n) => selection.has(n));
-  const basculer = (numeros: string[], cocher: boolean) => setSelection((s) => {
-    const suivante = new Set(s);
-    numeros.forEach((n) => (cocher ? suivante.add(n) : suivante.delete(n)));
+  const totalValides = valides.data?.page.totalElements ?? 0;
+  const nombreLot = !confirmation ? 0 : confirmation.portee === "selection"
+    ? (confirmation.action === "valider" ? pretsCoches.length : validesCoches.length)
+    : (confirmation.action === "valider" ? totalPrets : totalValides);
+  // Seuls les dossiers prêts (à valider) et validés (à archiver) se cochent
+  const cochables = liste.data?.content.filter((d) => STATUTS_COCHABLES.includes(d.statut)) ?? [];
+  const toutCoche = cochables.length > 0 && cochables.every((d) => selection.has(d.numeroRapport));
+  const basculer = (dossiers: { numeroRapport: string; statut: StatutDossier }[], cocher: boolean) => setSelection((s) => {
+    const suivante = new Map(s);
+    dossiers.forEach((d) => (cocher ? suivante.set(d.numeroRapport, d.statut) : suivante.delete(d.numeroRapport)));
     return suivante;
   });
 
@@ -125,16 +145,23 @@ export default function DossiersPage() {
     </div>
     {gestionnaire && <article className="card bulk-bar">
       {confirmation
-        ? <span className="bulk-confirm">Valider {nombre(nombreLot)} dossier(s) ? Chaque validation est tracée à votre nom.
-          <Button onClick={() => lot.mutate(confirmation)} disabled={lot.isPending || nombreLot === 0}>{lot.isPending ? "Validation…" : "Confirmer"}</Button>
+        ? <span className="bulk-confirm">{confirmation.action === "valider"
+            ? `Valider ${nombre(nombreLot)} dossier(s) ? Chaque validation est tracée à votre nom.`
+            : `Archiver ${nombre(nombreLot)} dossier(s) validé(s) ? Ils ne se modifieront plus ; chaque archivage est tracé à votre nom.`}
+          <Button onClick={() => lot.mutate(confirmation)} disabled={lot.isPending || nombreLot === 0}>{lot.isPending ? "Traitement…" : "Confirmer"}</Button>
           <Button variant="secondary" onClick={() => setConfirmation(null)}>Annuler</Button></span>
         : <><span>{selection.size} dossier(s) sélectionné(s)</span>
-          <Button disabled={selection.size === 0} onClick={() => setConfirmation("selection")}>Valider la sélection</Button>
-          <Button variant="secondary" disabled={totalPrets === 0} onClick={() => setConfirmation("tous")}>
-            Valider tous les prêts à valider{filtresActifs ? " (selon les filtres)" : ""} ({nombre(totalPrets)})</Button></>}
+          <Button disabled={pretsCoches.length === 0} onClick={() => setConfirmation({ action: "valider", portee: "selection" })}>
+            {validesCoches.length > 0 ? `Valider la sélection (${pretsCoches.length})` : "Valider la sélection"}</Button>
+          <Button variant="secondary" disabled={validesCoches.length === 0} onClick={() => setConfirmation({ action: "archiver", portee: "selection" })}>
+            {pretsCoches.length > 0 ? `Archiver la sélection (${validesCoches.length})` : "Archiver la sélection"}</Button>
+          <Button variant="secondary" disabled={totalPrets === 0} onClick={() => setConfirmation({ action: "valider", portee: "tous" })}>
+            Valider tous les prêts à valider{filtresActifs ? " (selon les filtres)" : ""} ({nombre(totalPrets)})</Button>
+          <Button variant="secondary" disabled={totalValides === 0} onClick={() => setConfirmation({ action: "archiver", portee: "tous" })}>
+            Archiver tous les validés{filtresActifs ? " (selon les filtres)" : ""} ({nombre(totalValides)})</Button></>}
     </article>}
-    {lot.isError && <p className="import-erreur" role="alert">{messageErreur(lot.error, "Validation en lot impossible.")}</p>}
-    {lot.data && <article className="card bulk-resultat" role="status"><strong>{lot.data.valides} dossier(s) validé(s)</strong>{lot.data.paquets > 1 ? ` en ${lot.data.paquets} paquets de 500` : ""}
+    {lot.isError && <p className="import-erreur" role="alert">{messageErreur(lot.error, "Traitement en lot impossible.")}</p>}
+    {lot.data && <article className="card bulk-resultat" role="status"><strong>{lot.data.nombre} dossier(s) {lot.data.action === "valider" ? "validé(s)" : "archivé(s)"}</strong>{lot.data.paquets > 1 ? ` en ${lot.data.paquets} paquets de 500` : ""}
       {lot.data.ignores.length > 0 && <> · {lot.data.ignores.length} ignoré(s)<ul>{lot.data.ignores.slice(0, 10).map((i) => <li key={i.numeroRapport}>{i.numeroRapport} : {i.motif}</li>)}</ul></>}</article>}
     <article className="card folder-table">
       {liste.isError && <p className="import-erreur" role="alert">{messageErreur(liste.error, "Liste indisponible.")}</p>}
@@ -142,15 +169,15 @@ export default function DossiersPage() {
       {liste.data?.content.length === 0 && <p className="etat-chargement">Aucun dossier ne correspond à ces critères.</p>}
       {liste.data && liste.data.content.length > 0 &&
         <div className="table-scroll"><table><thead><tr>
-          {gestionnaire && <th className="coche"><input type="checkbox" aria-label="Cocher les dossiers prêts de la page" checked={toutCoche}
-            disabled={pretsDeLaPage.length === 0} onChange={() => basculer(pretsDeLaPage, !toutCoche)} /></th>}
+          {gestionnaire && <th className="coche"><input type="checkbox" aria-label="Cocher les dossiers de la page (prêts et validés)" checked={toutCoche}
+            disabled={cochables.length === 0} onChange={() => basculer(cochables, !toutCoche)} /></th>}
           <th>{enTete("N° RAPPORT", "numeroRapport")}</th><th>{enTete("DATE SINISTRE", "dateSinistre")}</th><th>ASSURÉ</th><th>IMMATRICULATION</th>
           <th>COMPAGNIE</th><th>ZONE DE CHOC</th><th>{enTete("INDEMNISATION (DH)", "montantIndemnisation")}</th><th>STATUT</th><th></th>
         </tr></thead><tbody>{liste.data.content.map((d) =>
           <tr key={d.id} onDoubleClick={() => navigate(adresseDossier(d.numeroRapport, d.statut, role, d.id))}>
-            {gestionnaire && <td className="coche"><input type="checkbox" aria-label={`Cocher ${d.numeroRapport}`} disabled={d.statut !== "PRET_A_VALIDER"}
-              title={d.statut !== "PRET_A_VALIDER" ? "Seul un dossier prêt à valider peut être validé" : undefined}
-              checked={selection.has(d.numeroRapport)} onChange={(e) => basculer([d.numeroRapport], e.target.checked)} /></td>}
+            {gestionnaire && <td className="coche"><input type="checkbox" aria-label={`Cocher ${d.numeroRapport}`} disabled={!STATUTS_COCHABLES.includes(d.statut)}
+              title={!STATUTS_COCHABLES.includes(d.statut) ? "Seul un dossier prêt à valider (pour le valider) ou validé (pour l’archiver) se coche" : undefined}
+              checked={selection.has(d.numeroRapport)} onChange={(e) => basculer([d], e.target.checked)} /></td>}
             <td><strong>{d.numeroRapport}</strong></td><td>{date(d.dateSinistre)}</td><td>{d.assure ?? "—"}</td>
             <td>{d.immatriculation ? <span className="plate">{d.immatriculation}</span> : "—"}</td><td>{d.compagnie ?? "—"}</td>
             <td>{d.zonesChoc.map((z) => ZONES_CHOC[z]).join(", ") || "—"}</td><td className="money">{montant(d.montantIndemnisation, "")}</td>

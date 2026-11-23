@@ -368,6 +368,41 @@ class DossierApiIntegrationTest {
     @WithMockUser(username = "consultant", roles = "CONSULTATION")
     void p9_unConsultantNArchivePas() throws Exception {
         mvc.perform(post("/api/dossiers/{numero}/archivage", "X")).andExpect(status().isForbidden());
+        mvc.perform(post("/api/dossiers/archivage-groupe").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"numeros\":[\"X\"]}")).andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(username = "gestionnaire", roles = "GESTIONNAIRE")
+    void archivageEnLot_archiveLesValides_etListeLesAutres() throws Exception {
+        String prefixe = nouveauNumero();
+        String valide1 = importer(RapportPdfFactice.numero(prefixe + "-A"));
+        String valide2 = importer(RapportPdfFactice.numero(prefixe + "-B"));
+        String valide3 = importer(RapportPdfFactice.numero(prefixe + "-C"));
+        String nonValide = importer(RapportPdfFactice.numero(prefixe + "-D"));
+        for (String n : List.of(valide1, valide2, valide3)) {
+            mvc.perform(post("/api/dossiers/{numero}/validation", n)).andExpect(status().isOk());
+        }
+
+        // Dossiers cochés : un non validé et un inconnu sont ignorés avec leur motif
+        mvc.perform(post("/api/dossiers/archivage-groupe").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"numeros\":[\"" + valide1 + "\",\"" + nonValide + "\",\"INCONNU-" + prefixe + "\"]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.archives").value(1))
+                .andExpect(jsonPath("$.ignores.length()").value(2))
+                .andExpect(jsonPath("$.ignores[?(@.numeroRapport == '" + nonValide + "')].motif",
+                        hasItem("Pas encore validé : seul un dossier validé s'archive.")));
+
+        // Tous les validés répondant au filtre : les 2 restants, par paquets de 2
+        mvc.perform(post("/api/dossiers/archivage-groupe").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"tousLesValides\":true,\"q\":\"" + prefixe + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.archives").value(2))
+                .andExpect(jsonPath("$.ignores.length()").value(0));
+        mvc.perform(get("/api/dossiers").param("q", prefixe).param("statut", "ARCHIVE"))
+                .andExpect(jsonPath("$.page.totalElements").value(3));
+        mvc.perform(get("/api/dossiers/{numero}/historique", valide2))
+                .andExpect(jsonPath("$[*].action", hasItem("ARCHIVAGE")));
     }
 
     // ------------------------------------------------------------------ comptes et journal

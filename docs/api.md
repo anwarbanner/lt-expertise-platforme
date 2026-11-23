@@ -40,6 +40,7 @@ Documentation interactive : `http://localhost:8080/swagger-ui.html` (OpenAPI : `
 | POST | `/dossiers/{numero}/validation` | G | Validation (P3) ; 409 si le dossier n'est pas « Prêt à valider » |
 | POST | `/dossiers/validation-groupee` | G | Validation en lot. Corps `{ numeros: [...] }` ou `{ tousLesPrets: true, q, compagnie, zone, du, au, montantMin, montantMax }` → `{ valides, ignores: [{ numeroRapport, motif }], paquets }` (paquets de 500) |
 | POST | `/dossiers/{numero}/archivage` | G | Archivage d'un dossier validé (P6) ; 409 si le dossier n'est pas validé |
+| POST | `/dossiers/archivage-groupe` | G | Archivage en lot. Corps `{ numeros: [...] }` ou `{ tousLesValides: true, q, compagnie, zone, du, au, montantMin, montantMax }` → `{ archives, ignores: [{ numeroRapport, motif }], paquets }` (paquets de 500) ; seuls les dossiers validés sont archivés |
 | POST | `/dossiers/{numero}/annulation` | A | Annulation d'un import erroné. Corps `{ motif }` (obligatoire, 500 caractères max.) ; 409 si le dossier est validé, archivé ou déjà annulé. Rien n'est supprimé |
 | GET | `/dossiers/{numero}/historique?id=` | tous | Historique du dossier (journal : import, modifications, validation, archivage, annulation, exports). `id` : un import annulé précis, comme pour la fiche |
 

@@ -6,6 +6,7 @@ import ma.ltexpertise.audit.JournalAuditRepository;
 import ma.ltexpertise.controle.Controle;
 import ma.ltexpertise.controle.ControleCoherenceService;
 import ma.ltexpertise.dossier.DossierDtos.ControleDto;
+import ma.ltexpertise.dossier.DossierDtos.ArchivageGroupe;
 import ma.ltexpertise.dossier.DossierDtos.DossierDetail;
 import ma.ltexpertise.dossier.DossierDtos.DossierIgnore;
 import ma.ltexpertise.dossier.DossierDtos.DossierModification;
@@ -16,6 +17,7 @@ import ma.ltexpertise.dossier.DossierDtos.LigneDetailDto;
 import ma.ltexpertise.dossier.DossierDtos.LigneMainOeuvreDto;
 import ma.ltexpertise.dossier.DossierDtos.PartieDto;
 import ma.ltexpertise.dossier.DossierDtos.PrixLigne;
+import ma.ltexpertise.dossier.DossierDtos.ResultatArchivageGroupe;
 import ma.ltexpertise.dossier.DossierDtos.ResultatValidationGroupee;
 import ma.ltexpertise.dossier.DossierDtos.ValeurCommentaireDto;
 import ma.ltexpertise.dossier.DossierDtos.ValidationGroupee;
@@ -234,74 +236,135 @@ public class ServiceDossier {
      */
     public ResultatValidationGroupee validerEnLot(ValidationGroupee demande, Utilisateur gestionnaire) {
         OffsetDateTime maintenant = OffsetDateTime.now(horloge);
+        Specification<RapportExpertise> tous = !demande.tousLesPrets() ? null
+                : new CriteresRecherche(demande.q(), StatutDossier.PRET_A_VALIDER, demande.compagnie(), demande.zone(),
+                demande.du(), demande.au(), demande.montantMin(), demande.montantMax(), null).specification();
+        ResultatLot resultat = traiterEnLot(demande.numeros(), tous, r -> {
+            StatutDossier avant = r.getStatut();
+            if (avant != StatutDossier.PRET_A_VALIDER) {
+                return motifNonPret(avant);
+            }
+            try {
+                r.valider(gestionnaire, maintenant);
+            } catch (ValidationRefuseeException e) {
+                return e.getMessage();
+            }
+            journal.save(new JournalAudit(ActionAudit.VALIDATION, gestionnaire, maintenant)
+                    .surEntite(RapportExpertise.class.getSimpleName(), r.getId(), r.getId())
+                    .avecChangement("statut", avant.name(), StatutDossier.VALIDE.name()));
+            return null;
+        });
+        return new ResultatValidationGroupee(resultat.traites(), resultat.ignores(), resultat.paquets());
+    }
+
+    /**
+     * Archivage en lot (P6) par un gestionnaire ou un administrateur : les dossiers cochés, ou tous les dossiers validés
+     * qui répondent aux filtres. Même règle et même trace qu'un archivage unitaire ; les dossiers non validés sont
+     * ignorés avec leur motif. Mêmes paquets transactionnels que la validation en lot.
+     */
+    public ResultatArchivageGroupe archiverEnLot(ArchivageGroupe demande, Utilisateur gestionnaire) {
+        OffsetDateTime maintenant = OffsetDateTime.now(horloge);
+        Specification<RapportExpertise> tous = !demande.tousLesValides() ? null
+                : new CriteresRecherche(demande.q(), StatutDossier.VALIDE, demande.compagnie(), demande.zone(),
+                demande.du(), demande.au(), demande.montantMin(), demande.montantMax(), null).specification();
+        ResultatLot resultat = traiterEnLot(demande.numeros(), tous, r -> {
+            StatutDossier avant = r.getStatut();
+            if (avant != StatutDossier.VALIDE) {
+                return motifNonArchivable(avant);
+            }
+            try {
+                r.archiver(gestionnaire);
+            } catch (ValidationRefuseeException e) {
+                return e.getMessage();
+            }
+            journal.save(new JournalAudit(ActionAudit.ARCHIVAGE, gestionnaire, maintenant)
+                    .surEntite(RapportExpertise.class.getSimpleName(), r.getId(), r.getId())
+                    .avecChangement("statut", avant.name(), StatutDossier.ARCHIVE.name()));
+            return null;
+        });
+        return new ResultatArchivageGroupe(resultat.traites(), resultat.ignores(), resultat.paquets());
+    }
+
+    /** Action d'un traitement en lot sur un dossier : {@code null} si elle est appliquée, sinon le motif d'ignorance. */
+    @FunctionalInterface
+    private interface ActionDeLot {
+        String appliquer(RapportExpertise rapport);
+    }
+
+    private record ResultatLot(int traites, List<DossierIgnore> ignores, int paquets) {
+    }
+
+    /**
+     * Applique une action aux dossiers cochés ({@code numeros}) ou, si {@code tous} est donné, à tous ceux qui répondent
+     * à ces filtres. Traitement par paquets de 500 dossiers ({@code lt.dossiers.taille-paquet-validation}), chacun dans
+     * sa propre transaction : la mémoire et les verrous restent bornés sur des dizaines de milliers de dossiers. Un
+     * paquet enregistré le reste si un paquet suivant échoue ; relancer la même demande reprend les dossiers restants.
+     */
+    private ResultatLot traiterEnLot(List<String> numerosDemandes, Specification<RapportExpertise> tous, ActionDeLot action) {
         List<DossierIgnore> ignores = new ArrayList<>();
-        int valides = 0;
+        int traites = 0;
         int paquets = 0;
-        if (demande.tousLesPrets()) {
-            Specification<RapportExpertise> filtres = new CriteresRecherche(demande.q(), StatutDossier.PRET_A_VALIDER,
-                    demande.compagnie(), demande.zone(), demande.du(), demande.au(), demande.montantMin(),
-                    demande.montantMax(), null).specification();
-            // Parcours par identifiant croissant : un dossier ignoré (resté prêt) n'est pas relu au paquet suivant
+        if (tous != null) {
+            // Parcours par identifiant croissant : un dossier ignoré (resté dans le filtre) n'est pas relu ensuite
             long dernierId = 0;
             Paquet p;
             do {
                 long apres = dernierId;
-                p = transaction.execute(etat -> validerPaquet(rapports.findAll(
-                        filtres.and((racine, requete, cb) -> cb.greaterThan(racine.get("id"), apres)),
-                        PageRequest.of(0, taillePaquet, Sort.by("id"))).getContent(), gestionnaire, maintenant));
-                valides += p.valides();
+                p = transaction.execute(etat -> traiterPaquet(rapports.findAll(
+                        tous.and((racine, requete, cb) -> cb.greaterThan(racine.get("id"), apres)),
+                        PageRequest.of(0, taillePaquet, Sort.by("id"))).getContent(), action));
+                traites += p.traites();
                 ignores.addAll(p.ignores());
                 dernierId = p.dernierId();
                 paquets += p.taille() > 0 ? 1 : 0;
             } while (p.taille() == taillePaquet);
         } else {
-            List<String> numeros = demande.numeros() == null ? List.of()
-                    : demande.numeros().stream().filter(Objects::nonNull).distinct().toList();
+            List<String> numeros = numerosDemandes == null ? List.of()
+                    : numerosDemandes.stream().filter(Objects::nonNull).distinct().toList();
             for (int debut = 0; debut < numeros.size(); debut += taillePaquet) {
                 List<String> tranche = numeros.subList(debut, Math.min(debut + taillePaquet, numeros.size()));
                 Paquet p = transaction.execute(etat -> {
                     List<RapportExpertise> trouves = sansDoublonAnnule(rapports.findByNumeroRapportIn(tranche));
-                    Paquet resultat = validerPaquet(trouves, gestionnaire, maintenant);
+                    Paquet resultat = traiterPaquet(trouves, action);
                     tranche.stream().filter(n -> trouves.stream().noneMatch(r -> n.equals(r.getNumeroRapport())))
                             .forEach(n -> resultat.ignores().add(new DossierIgnore(n, "Dossier introuvable.")));
                     return resultat;
                 });
-                valides += p.valides();
+                traites += p.traites();
                 ignores.addAll(p.ignores());
                 paquets++;
             }
         }
-        return new ResultatValidationGroupee(valides, ignores, paquets);
+        return new ResultatLot(traites, ignores, paquets);
     }
 
     /** Résultat d'un paquet ; {@code dernierId} : plus grand identifiant lu, pour reprendre au paquet suivant. */
-    private record Paquet(int valides, List<DossierIgnore> ignores, long dernierId, int taille) {
+    private record Paquet(int traites, List<DossierIgnore> ignores, long dernierId, int taille) {
     }
 
-    private Paquet validerPaquet(List<RapportExpertise> lot, Utilisateur gestionnaire, OffsetDateTime maintenant) {
+    private Paquet traiterPaquet(List<RapportExpertise> lot, ActionDeLot action) {
         List<DossierIgnore> ignores = new ArrayList<>();
-        int valides = 0;
+        int traites = 0;
         long dernierId = 0;
         for (RapportExpertise r : lot) {
             dernierId = Math.max(dernierId, r.getId());
-            StatutDossier avant = r.getStatut();
-            if (avant != StatutDossier.PRET_A_VALIDER) {
-                ignores.add(new DossierIgnore(r.getNumeroRapport(), motifNonPret(avant)));
-                continue;
+            String motif = action.appliquer(r);
+            if (motif == null) {
+                traites++;
+            } else {
+                ignores.add(new DossierIgnore(r.getNumeroRapport(), motif));
             }
-            try {
-                r.valider(gestionnaire, maintenant);
-            } catch (ValidationRefuseeException e) {
-                ignores.add(new DossierIgnore(r.getNumeroRapport(), e.getMessage()));
-                continue;
-            }
-            journal.save(new JournalAudit(ActionAudit.VALIDATION, gestionnaire, maintenant)
-                    .surEntite(RapportExpertise.class.getSimpleName(), r.getId(), r.getId())
-                    .avecChangement("statut", avant.name(), StatutDossier.VALIDE.name()));
-            valides++;
         }
         rapports.flush();
-        return new Paquet(valides, ignores, dernierId, lot.size());
+        return new Paquet(traites, ignores, dernierId, lot.size());
+    }
+
+    private static String motifNonArchivable(StatutDossier statut) {
+        return switch (statut) {
+            case ARCHIVE -> "Déjà archivé.";
+            case ANNULE -> "Import annulé.";
+            default -> "Pas encore validé : seul un dossier validé s'archive.";
+        };
     }
 
     /** Un n° porté par un dossier actif et par un import annulé : seul le dossier actif est retenu. */
