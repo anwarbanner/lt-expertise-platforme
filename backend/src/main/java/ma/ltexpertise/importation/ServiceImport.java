@@ -41,6 +41,8 @@ import java.util.UUID;
 public class ServiceImport {
 
     private static final byte[] SIGNATURE_PDF = "%PDF-".getBytes(StandardCharsets.US_ASCII);
+    /** La norme PDF tolère l'en-tête %PDF- dans les 1024 premiers octets (octets parasites avant). */
+    static final int ZONE_RECHERCHE_SIGNATURE = 1024;
     private static final int LONGUEUR_MAX_NOM = 255;
 
     private final StockageDocuments stockage;
@@ -212,11 +214,22 @@ public class ServiceImport {
                     + proprietes.tailleMaxOctets() + ").");
         }
         // Le type annoncé par le navigateur n'est pas fiable : on contrôle la signature du fichier.
-        if (contenu.length < SIGNATURE_PDF.length
-                || !Arrays.equals(contenu, 0, SIGNATURE_PDF.length, SIGNATURE_PDF, 0, SIGNATURE_PDF.length)) {
+        // Certains logiciels ajoutent des octets avant l'en-tête (BOM, espace, retour à la ligne) :
+        // comme Acrobat, on cherche la signature dans les 1024 premiers octets.
+        if (!contientSignaturePdf(contenu)) {
             return Optional.of("Le fichier n'est pas un PDF.");
         }
         return Optional.empty();
+    }
+
+    static boolean contientSignaturePdf(byte[] contenu) {
+        int dernierDebut = Math.min(contenu.length, ZONE_RECHERCHE_SIGNATURE) - SIGNATURE_PDF.length;
+        for (int debut = 0; debut <= dernierDebut; debut++) {
+            if (Arrays.equals(contenu, debut, debut + SIGNATURE_PDF.length, SIGNATURE_PDF, 0, SIGNATURE_PDF.length)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean estDossierEnCoursSansPdf(RapportExpertise rapport) {

@@ -286,6 +286,33 @@ class ImportPdfIntegrationTest {
     }
 
     @Test
+    void unPdfPrecedeDOctetsParasitesEstImporte() {
+        String numero = nouveauNumero();
+        byte[] original = GenerateurPdf.rapport(numero);
+        // BOM UTF-8, retour à la ligne et espaces avant %PDF-
+        byte[] prefixe = {(byte) 0xEF, (byte) 0xBB, (byte) 0xBF, 13, 10, 32, 32};
+        byte[] pdf = new byte[prefixe.length + original.length];
+        System.arraycopy(prefixe, 0, pdf, 0, prefixe.length);
+        System.arraycopy(original, 0, pdf, prefixe.length, original.length);
+
+        ResultatImport resultat = service.importer("avec-prefixe.pdf", pdf, gestionnaire, null);
+
+        assertThat(resultat.issue()).isNotEqualTo(IssueImport.FICHIER_INVALIDE);
+        assertThat(resultat.numeroRapport()).isEqualTo(numero);
+        assertThat(resultat.rapportId()).isNotNull();
+    }
+
+    @Test
+    void uneSignaturePdfAuDelaDes1024PremiersOctetsEstRefusee() {
+        byte[] contenu = (" ".repeat(ServiceImport.ZONE_RECHERCHE_SIGNATURE) + "%PDF-1.7 " + nouveauNumero())
+                .getBytes(StandardCharsets.US_ASCII);
+
+        ResultatImport resultat = service.importer("tardif.pdf", contenu, gestionnaire, null);
+
+        assertThat(resultat.issue()).isEqualTo(IssueImport.FICHIER_INVALIDE);
+    }
+
+    @Test
     void unFichierQuiNEstPasUnPdfNEstPasEnregistre() {
         byte[] texte = ("pas un pdf " + nouveauNumero()).getBytes(StandardCharsets.UTF_8);
 
