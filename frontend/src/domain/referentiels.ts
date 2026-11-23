@@ -8,7 +8,14 @@ export type StatutDossier =
   | "A_VERIFIER"
   | "PRET_A_VALIDER"
   | "VALIDE"
-  | "ARCHIVE";
+  | "ARCHIVE"
+  | "ANNULE";
+
+/** Statuts de fin de cycle (P6) : le dossier ne se modifie plus. */
+export const STATUTS_CLOS: readonly StatutDossier[] = ["ARCHIVE", "ANNULE"];
+
+/** Statuts où un import erroné peut encore être annulé par l'administrateur (avant validation). */
+export const STATUTS_ANNULABLES: readonly StatutDossier[] = ["IMPORTE", "A_COMPLETER", "A_VERIFIER", "PRET_A_VALIDER"];
 
 /**
  * Statuts affichés par l'interface : ceux du dossier, plus REFUSE pour un fichier refusé à l'import
@@ -24,6 +31,7 @@ export const LIBELLES_STATUT: Record<StatutAffiche, string> = {
   PRET_A_VALIDER: "Prêt à valider",
   VALIDE: "Validé",
   ARCHIVE: "Archivé",
+  ANNULE: "Annulé",
   REFUSE: "Refusé",
 };
 

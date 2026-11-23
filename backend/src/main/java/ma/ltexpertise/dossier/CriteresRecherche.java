@@ -42,6 +42,9 @@ public record CriteresRecherche(String q, StatutDossier statut, String compagnie
             }
             if (statut != null) {
                 conditions.add(cb.equal(racine.get("statut"), statut));
+            } else {
+                // Un import annulé n'apparaît que dans l'onglet « Annulés »
+                conditions.add(cb.notEqual(racine.get("statut"), StatutDossier.ANNULE));
             }
             if (compagnie != null && !compagnie.isBlank()) {
                 conditions.add(cb.equal(cb.lower(racine.get("compagnie")), compagnie.strip().toLowerCase(Locale.ROOT)));

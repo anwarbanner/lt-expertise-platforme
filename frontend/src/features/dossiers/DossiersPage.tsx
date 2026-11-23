@@ -21,7 +21,7 @@ const TRANCHES: Record<string, [string, string, string]> = {
   "20000-100000": ["20 000 à 100 000 DH", "20000", "100000"],
   "plus-100000": ["Plus de 100 000 DH", "100000", ""],
 };
-const ONGLETS: [string, StatutDossier | ""][] = [["Tous", ""], ["À compléter", "A_COMPLETER"], ["À vérifier", "A_VERIFIER"], ["Prêts à valider", "PRET_A_VALIDER"], ["Validés", "VALIDE"]];
+const ONGLETS: [string, StatutDossier | ""][] = [["Tous", ""], ["À compléter", "A_COMPLETER"], ["À vérifier", "A_VERIFIER"], ["Prêts à valider", "PRET_A_VALIDER"], ["Validés", "VALIDE"], ["Archivés", "ARCHIVE"], ["Annulés", "ANNULE"]];
 const FILTRES = ["q", "statut", "compagnie", "zone", "du", "au", "tranche", "anomalies"] as const;
 
 /** Liste, recherche et filtres des dossiers (F7, F8). Les filtres vivent dans l'adresse (partageable, retour arrière). */
@@ -97,7 +97,8 @@ export default function DossiersPage() {
     return <button className="tri" onClick={() => trier(colonne)}>{libelle} {actuelle === colonne ? (sens === "asc" ? "↑" : "↓") : "↕"}</button>;
   }
 
-  const total = Object.values(compteurs.data ?? {}).reduce((t, n) => t + (n ?? 0), 0);
+  // « Tous » n'inclut pas les imports annulés, comme la liste sans filtre de statut
+  const total = Object.entries(compteurs.data ?? {}).reduce((t, [s, n]) => (s === "ANNULE" ? t : t + (n ?? 0)), 0);
   const page = liste.data?.page;
   const filtresActifs = FILTRES.some((f) => params.get(f));
 
@@ -146,7 +147,7 @@ export default function DossiersPage() {
           <th>{enTete("N° RAPPORT", "numeroRapport")}</th><th>{enTete("DATE SINISTRE", "dateSinistre")}</th><th>ASSURÉ</th><th>IMMATRICULATION</th>
           <th>COMPAGNIE</th><th>ZONE DE CHOC</th><th>{enTete("INDEMNISATION (DH)", "montantIndemnisation")}</th><th>STATUT</th><th></th>
         </tr></thead><tbody>{liste.data.content.map((d) =>
-          <tr key={d.id} onDoubleClick={() => navigate(adresseDossier(d.numeroRapport, d.statut, role))}>
+          <tr key={d.id} onDoubleClick={() => navigate(adresseDossier(d.numeroRapport, d.statut, role, d.id))}>
             {gestionnaire && <td className="coche"><input type="checkbox" aria-label={`Cocher ${d.numeroRapport}`} disabled={d.statut !== "PRET_A_VALIDER"}
               title={d.statut !== "PRET_A_VALIDER" ? "Seul un dossier prêt à valider peut être validé" : undefined}
               checked={selection.has(d.numeroRapport)} onChange={(e) => basculer([d.numeroRapport], e.target.checked)} /></td>}
@@ -154,7 +155,7 @@ export default function DossiersPage() {
             <td>{d.immatriculation ? <span className="plate">{d.immatriculation}</span> : "—"}</td><td>{d.compagnie ?? "—"}</td>
             <td>{d.zonesChoc.map((z) => ZONES_CHOC[z]).join(", ") || "—"}</td><td className="money">{montant(d.montantIndemnisation, "")}</td>
             <td><StatusBadge statut={d.statut} />{d.anomalies > 0 && <span className="anomalies" title={`${d.anomalies} contrôle(s) ou champ(s) à revoir`}>⚠ {d.anomalies}</span>}</td>
-            <td><div className="action-menu"><Button variant="quiet" onClick={() => navigate(adresseDossier(d.numeroRapport, d.statut, role))}>Ouvrir</Button></div></td>
+            <td><div className="action-menu"><Button variant="quiet" onClick={() => navigate(adresseDossier(d.numeroRapport, d.statut, role, d.id))}>Ouvrir</Button></div></td>
           </tr>)}</tbody></table></div>}
       {page && page.totalElements > 0 && <div className="pagination">
         <span>{nombre(page.number * page.size + 1)}–{nombre(Math.min((page.number + 1) * page.size, page.totalElements))} sur {nombre(page.totalElements)}</span>

@@ -29,8 +29,8 @@ export const cles = {
   dossiers: (filtres: FiltresDossiers) => ["dossiers", "liste", filtres] as const,
   compteurs: ["dossiers", "compteurs"] as const,
   compagnies: ["dossiers", "compagnies"] as const,
-  dossier: (numero: string) => ["dossiers", "detail", numero] as const,
-  historique: (numero: string) => ["dossiers", "historique", numero] as const,
+  dossier: (numero: string, id?: number) => ["dossiers", "detail", numero, ...(id != null ? [id] : [])] as const,
+  historique: (numero: string, id?: number) => ["dossiers", "historique", numero, ...(id != null ? [id] : [])] as const,
   tableauDeBord: (periode: string) => ["statistiques", "tableau-de-bord", periode] as const,
   prix: (filtres: object) => ["statistiques", "prix", filtres] as const,
   suggestions: ["recherche", "suggestions"] as const,
@@ -53,8 +53,9 @@ export async function compagnies() {
   return (await api.get<string[]>("/dossiers/compagnies")).data;
 }
 
-export async function dossier(numero: string) {
-  return (await api.get<DossierDetail>(`/dossiers/${encodeURIComponent(numero)}`)).data;
+/** @param id un import annulé précis ; sans id, le dossier actif portant ce n° */
+export async function dossier(numero: string, id?: number) {
+  return (await api.get<DossierDetail>(`/dossiers/${encodeURIComponent(numero)}`, { params: nettoyer({ id }) })).data;
 }
 
 export async function modifierDossier(numero: string, modification: DossierModification) {
@@ -70,8 +71,18 @@ export async function validerEnLot(demande: ValidationGroupee) {
   return (await api.post<ResultatValidationGroupee>("/dossiers/validation-groupee", nettoyer(demande))).data;
 }
 
-export async function historique(numero: string) {
-  return (await api.get<EvenementHistorique[]>(`/dossiers/${encodeURIComponent(numero)}/historique`)).data;
+export async function historique(numero: string, id?: number) {
+  return (await api.get<EvenementHistorique[]>(`/dossiers/${encodeURIComponent(numero)}/historique`, { params: nettoyer({ id }) })).data;
+}
+
+/** Archivage d'un dossier validé (gestionnaire ou administrateur). */
+export async function archiverDossier(numero: string) {
+  return (await api.post<DossierDetail>(`/dossiers/${encodeURIComponent(numero)}/archivage`)).data;
+}
+
+/** Annulation d'un import erroné (administrateur), motif obligatoire. Rien n'est supprimé. */
+export async function annulerImport(numero: string, motif: string) {
+  return (await api.post<DossierDetail>(`/dossiers/${encodeURIComponent(numero)}/annulation`, { motif })).data;
 }
 
 /** PDF original (P1), en objet Blob affichable dans la page. */

@@ -35,6 +35,7 @@ export function dossierDetail(numeroRapport: string, statut: StatutDossier, autr
     typeReforme: nul, epavisteNom: nul, epavisteVille: nul, valeurNeuf: nul, valeurAssuree: nul, valeurVenale: nul, valeurEpave: nul,
     tvaRecuperable: nul, montantIndemnisation: 2400, montantLettres: "Deux mille quatre cents dirhams", commentaire: nul, valeursCommentaire: [],
     lignesDetail: [], controles: [], champsASaisir: [], importId: nul, nomFichier: nul, validePar: nul, valideLe: nul,
+    annulePar: nul, annuleLe: nul, motifAnnulation: nul,
     creeLe: "2026-10-20T10:00:00Z", version: 0, ...autres,
   };
 }

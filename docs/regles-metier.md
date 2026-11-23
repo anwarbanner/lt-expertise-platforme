@@ -14,9 +14,22 @@ signalées.
 | À compléter | Une **donnée essentielle** manque | Idem |
 | Prêt à valider | Aucun blocage : en attente d'un gestionnaire | Idem |
 | Validé | Validé par un gestionnaire ou un administrateur (P3), jamais automatiquement | Action « Valider », unitaire ou en lot |
-| Archivé | Dossier clos | Prévu |
+| Archivé | Dossier validé puis clos : consultable, compté dans les statistiques, ne se modifie plus | Action « Archiver » d'un gestionnaire ou d'un administrateur, sur un dossier validé |
+| Annulé | Import erroné écarté (mauvais fichier, rapport d'un autre dossier…) | Action « Annuler l'import » d'un **administrateur**, motif obligatoire, tant que le dossier n'est pas validé |
 
-Le statut est recalculé à chaque enregistrement de l'écran de vérification.
+Le statut est recalculé à chaque enregistrement de l'écran de vérification, sauf pour un dossier archivé ou annulé qui
+ne se modifie plus.
+
+### Pas de suppression d'un dossier
+
+Un dossier importé ne se supprime jamais : le PDF original fait foi (P1, stockage verrouillé) et le journal d'audit est en
+ajout seul (P7). Un import erroné s'**annule** :
+
+- le PDF original, les données et l'historique restent consultables (onglet « Annulés » de la liste) ;
+- le dossier sort de la liste par défaut, du tableau de bord, de l'analyse des prix et des recherches F12 ;
+- le n° de rapport est libéré : le bon PDF portant le même n° peut être réimporté (le n° reste unique parmi les dossiers
+  non annulés) ; le même fichier, lui, reste refusé comme doublon (empreinte) ;
+- un dossier validé ne s'annule pas : il s'archive.
 
 ## Contrôles de cohérence (P4, P5)
 

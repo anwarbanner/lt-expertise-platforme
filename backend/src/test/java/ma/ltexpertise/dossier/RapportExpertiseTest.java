@@ -85,6 +85,43 @@ class RapportExpertiseTest {
     }
 
     @Test
+    void lAdministrateurAnnuleUnImportNonValide_avecMotif() {
+        Utilisateur admin = JeuDeDonnees.utilisateur("admin", Role.ADMINISTRATEUR);
+        RapportExpertise r = new RapportExpertise("268202-0020", StatutDossier.A_VERIFIER);
+
+        assertThatThrownBy(() -> r.annuler(admin, " ", MAINTENANT)).hasMessageContaining("motif");
+        assertThatThrownBy(() -> r.annuler(gestionnaire, "erreur", MAINTENANT))
+                .isInstanceOf(ValidationRefuseeException.class);
+        r.annuler(admin, "  Mauvais fichier ", MAINTENANT);
+
+        assertThat(r.getStatut()).isEqualTo(StatutDossier.ANNULE);
+        assertThat(r.getAnnulePar()).isSameAs(admin);
+        assertThat(r.getMotifAnnulation()).isEqualTo("Mauvais fichier");
+        assertThat(r.estClos()).isTrue();
+        assertThatThrownBy(() -> r.changerStatut(StatutDossier.A_VERIFIER)).isInstanceOf(ValidationRefuseeException.class);
+        assertThatThrownBy(() -> r.valider(admin, MAINTENANT)).isInstanceOf(ValidationRefuseeException.class);
+    }
+
+    @Test
+    void unDossierValideNeSAnnulePas_ilSArchive() {
+        Utilisateur admin = JeuDeDonnees.utilisateur("admin", Role.ADMINISTRATEUR);
+        RapportExpertise r = new RapportExpertise("268202-0021", StatutDossier.PRET_A_VALIDER);
+        assertThatThrownBy(() -> r.archiver(gestionnaire)).hasMessageContaining("validé");
+        r.valider(gestionnaire, MAINTENANT);
+
+        assertThatThrownBy(() -> r.annuler(admin, "erreur", MAINTENANT)).hasMessageContaining("archive");
+        assertThatThrownBy(() -> r.archiver(JeuDeDonnees.utilisateur("u", Role.CONSULTATION)))
+                .isInstanceOf(ValidationRefuseeException.class);
+        r.archiver(gestionnaire);
+
+        assertThat(r.getStatut()).isEqualTo(StatutDossier.ARCHIVE);
+        assertThat(r.getValidePar()).isSameAs(gestionnaire);
+        assertThatThrownBy(() -> r.changerStatut(StatutDossier.A_VERIFIER)).isInstanceOf(ValidationRefuseeException.class);
+        assertThatThrownBy(() -> new RapportExpertise("268202-0022", StatutDossier.IMPORTE)
+                .changerStatut(StatutDossier.ARCHIVE)).isInstanceOf(ValidationRefuseeException.class);
+    }
+
+    @Test
     void uneMemePartieNePeutPasEtreAjouteeDeuxFois() {
         RapportExpertise r = new RapportExpertise("268202-0016", StatutDossier.IMPORTE);
         r.ajouterPartie(new Partie(TypePartie.ASSURE));

@@ -20,7 +20,7 @@ export function libelle(liste: readonly (readonly [string, string])[], valeur: s
 
 const ACTIONS: Record<string, string> = {
   IMPORT: "Importé", IMPORT_REFUSE: "Import refusé", CREATION: "Créé", MODIFICATION: "Modifié",
-  CHANGEMENT_STATUT: "Statut changé", VALIDATION: "Validé", ARCHIVAGE: "Archivé", EXPORT_PDF: "Rapport PDF généré",
+  CHANGEMENT_STATUT: "Statut changé", VALIDATION: "Validé", ARCHIVAGE: "Archivé", ANNULATION: "Import annulé", EXPORT_PDF: "Rapport PDF généré",
   EXPORT_EXCEL: "Export Excel", CONNEXION: "Connexion", ECHEC_CONNEXION: "Échec de connexion",
   GESTION_UTILISATEUR: "Gestion des comptes",
 };

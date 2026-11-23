@@ -26,7 +26,7 @@ const ROLES: readonly (readonly [Role, string])[] = [
 ];
 
 const ACTIONS_AUDIT = ["CONNEXION", "ECHEC_CONNEXION", "IMPORT", "IMPORT_REFUSE", "CREATION", "MODIFICATION",
-  "CHANGEMENT_STATUT", "VALIDATION", "ARCHIVAGE", "EXPORT_PDF", "EXPORT_EXCEL", "GESTION_UTILISATEUR"] as const;
+  "CHANGEMENT_STATUT", "VALIDATION", "ARCHIVAGE", "ANNULATION", "EXPORT_PDF", "EXPORT_EXCEL", "GESTION_UTILISATEUR"] as const;
 
 /** Catégorie affichée (classe CSS, libellé) d'une action du journal. */
 function categorie(action: string): readonly [string, string] {

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useParams } from "react-router";
+import { Navigate, useNavigate, useParams } from "react-router";
 import { cles, dossier as chargerDossier, modifierDossier, validerDossier } from "@/api/dossiers";
 import { messageErreur } from "@/api/client";
 import { ROUTES } from "@/app/routes";
@@ -10,7 +10,7 @@ import { Icon } from "@/components/ui/Icon";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { Controle, DossierDetail, DossierModification, Partie, Vehicule } from "@/domain/dossiers";
 import { dateHeure } from "@/domain/format";
-import { ZONES_CHOC } from "@/domain/referentiels";
+import { STATUTS_CLOS, ZONES_CHOC } from "@/domain/referentiels";
 import { DamageTable } from "./components/DamageTable";
 import { DetailPieces } from "./components/DetailPieces";
 import { PdfViewer } from "./components/PdfViewer";
@@ -81,6 +81,8 @@ export default function VerificationPage() {
   const modifie = useMemo(() => !!d && !!brouillon && JSON.stringify(brouillon) !== JSON.stringify(brouillonDe(d)), [d, brouillon]);
 
   if (requete.isPending || (d && !brouillon)) return <main className="verify-page"><p className="etat-chargement">Chargement du dossier…</p></main>;
+  // Un dossier archivé ou annulé ne se modifie plus : retour à la fiche
+  if (d && STATUTS_CLOS.includes(d.statut)) return <Navigate to={ROUTES.dossier(numero)} replace />;
   if (requete.isError || !d || !brouillon) return <main className="verify-page"><p className="import-erreur" role="alert">{messageErreur(requete.error, "Dossier introuvable.")}</p><Button variant="secondary" onClick={() => navigate(ROUTES.dossiers)}>Retour aux dossiers</Button></main>;
 
   const coherence = d.controles.filter((c) => c.type === "COHERENCE");

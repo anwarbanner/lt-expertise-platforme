@@ -74,7 +74,8 @@ public class ServiceRapports {
     @Transactional
     public RapportGenere generer(String numero, Utilisateur auteur) {
         DossierDetail d = dossiers.detail(numero).orElseThrow(DossierIntrouvableException::new);
-        if (d.statut() != StatutDossier.VALIDE) {
+        // Un dossier archivé a été validé : son rapport se génère toujours
+        if (d.statut() != StatutDossier.VALIDE && d.statut() != StatutDossier.ARCHIVE) {
             throw new GenerationRefuseeException("Le rapport PDF ne se génère qu'à partir d'un dossier validé (P10) : "
                     + "validez d'abord le dossier " + numero + ".");
         }

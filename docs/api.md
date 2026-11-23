@@ -23,7 +23,7 @@ Documentation interactive : `http://localhost:8080/swagger-ui.html` (OpenAPI : `
 
 | Méthode | Route | Rôle | Description |
 |---|---|---|---|
-| POST | `/imports` | G | Multipart, champ `fichiers` (un ou plusieurs PDF, 20 Mo max chacun). Un fichier : 201 et récapitulatif ; plusieurs : 202, traitement en arrière-plan, récapitulatif à l'adresse de l'en-tête `Location` |
+| POST | `/imports` | G | Multipart, champ `fichiers` (un ou plusieurs PDF, 20 Mo max chacun ; 100 fichiers et 200 Mo au plus par requête, sinon 413 : l’écran d’import découpe un gros dépôt en envois de 40 fichiers et 100 Mo, un lot par envoi). Un fichier : 201 et récapitulatif ; plusieurs : 202, traitement en arrière-plan, récapitulatif à l'adresse de l'en-tête `Location` |
 | GET | `/imports/{lot}` | tous | Récapitulatif d'un lot (UUID) : traités, réussis, à vérifier, prêts, refusés, résultat par fichier |
 | GET | `/imports?refuses=false&page=0&size=20` | tous | Historique des imports ; `refuses=true` : seulement les fichiers refusés (liste « Fichiers refusés » du cahier des charges, pas encore d’onglet dédié à l’écran) |
 | GET | `/imports/{id}/pdf` | tous | PDF original, contrôlé contre son empreinte (P1) |
@@ -32,14 +32,16 @@ Documentation interactive : `http://localhost:8080/swagger-ui.html` (OpenAPI : `
 
 | Méthode | Route | Rôle | Description |
 |---|---|---|---|
-| GET | `/dossiers` | tous | Recherche paginée. Paramètres : `q` (n°, réf. sinistre, immatriculation, nom, réparateur), `statut`, `compagnie`, `zone` (1–8), `du`, `au` (date du rapport), `montantMin`, `montantMax`, `anomalies=true`, `page`, `size` (≤ 100), `sort` (`numeroRapport`, `dateSinistre`, `montantIndemnisation`, `creeLe`) |
+| GET | `/dossiers` | tous | Recherche paginée. Paramètres : `q` (n°, réf. sinistre, immatriculation, nom, réparateur), `statut`, `compagnie`, `zone` (1–8), `du`, `au` (date du rapport), `montantMin`, `montantMax`, `anomalies=true`, `page`, `size` (≤ 100), `sort` (`numeroRapport`, `dateSinistre`, `montantIndemnisation`, `creeLe`). Sans `statut`, les imports annulés sont exclus (`statut=ANNULE` pour les voir) |
 | GET | `/dossiers/compteurs` | tous | Nombre de dossiers par statut |
 | GET | `/dossiers/compagnies` | tous | Compagnies présentes (filtre) |
-| GET | `/dossiers/{numero}` | tous | Fiche complète : données, lignes de détail (`prixCoherent`, `prixCalcule`), contrôles (`conforme`, `bloquant`), champs absents, valeurs du commentaire, zones de choc |
+| GET | `/dossiers/{numero}?id=` | tous | Fiche du dossier actif portant ce n° (`id` : un import annulé précis, le n° ayant pu être réimporté ; `annulePar`, `annuleLe`, `motifAnnulation`). Fiche complète : données, lignes de détail (`prixCoherent`, `prixCalcule`), contrôles (`conforme`, `bloquant`), champs absents, valeurs du commentaire, zones de choc |
 | PUT | `/dossiers/{numero}` | G | Modification (écran de vérification). Corps : champs modifiables + `version` lue (409 si un autre utilisateur a modifié entre-temps) + `zonesChoc` + `prixLignes: [{ ordre, prixUnitaire }]`. Contrôles et statut recalculés ; chaque changement tracé |
 | POST | `/dossiers/{numero}/validation` | G | Validation (P3) ; 409 si le dossier n'est pas « Prêt à valider » |
 | POST | `/dossiers/validation-groupee` | G | Validation en lot. Corps `{ numeros: [...] }` ou `{ tousLesPrets: true, q, compagnie, zone, du, au, montantMin, montantMax }` → `{ valides, ignores: [{ numeroRapport, motif }], paquets }` (paquets de 500) |
-| GET | `/dossiers/{numero}/historique` | tous | Historique du dossier (journal : import, modifications, validation, exports) |
+| POST | `/dossiers/{numero}/archivage` | G | Archivage d'un dossier validé (P6) ; 409 si le dossier n'est pas validé |
+| POST | `/dossiers/{numero}/annulation` | A | Annulation d'un import erroné. Corps `{ motif }` (obligatoire, 500 caractères max.) ; 409 si le dossier est validé, archivé ou déjà annulé. Rien n'est supprimé |
+| GET | `/dossiers/{numero}/historique?id=` | tous | Historique du dossier (journal : import, modifications, validation, archivage, annulation, exports). `id` : un import annulé précis, comme pour la fiche |
 
 ## Statistiques — `/api/statistiques`
 

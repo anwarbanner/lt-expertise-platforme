@@ -296,6 +296,80 @@ class DossierApiIntegrationTest {
                 .andExpect(jsonPath("$.validePar").value("admin"));
     }
 
+    // ------------------------------------------------------------------ annulation et archivage (P6)
+
+    @Test
+    @WithMockUser(username = "admin", roles = "ADMINISTRATEUR")
+    void lAdministrateurAnnuleUnImportErrone_puisLeBonPdfSeReimporte() throws Exception {
+        String numero = importer(RapportPdfFactice.numero(nouveauNumero()).cabinetMasque());
+        long idErrone = lire(get("/api/dossiers/{numero}", numero)).get("id").asLong();
+
+        mvc.perform(post("/api/dossiers/{numero}/annulation", numero).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"motif\":\"  \"}"))
+                .andExpect(status().isBadRequest());
+        JsonNode annule = lire(post("/api/dossiers/{numero}/annulation", numero).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"motif\":\"Mauvais fichier déposé\"}"));
+        assertThat(annule.get("statut").asText()).isEqualTo("ANNULE");
+        assertThat(annule.get("annulePar").asText()).isEqualTo("admin");
+        assertThat(annule.get("motifAnnulation").asText()).isEqualTo("Mauvais fichier déposé");
+        assertThat(annule.get("importId").isNumber()).as("le PDF original reste consultable (P1)").isTrue();
+
+        // Hors des listes sans filtre ; visible dans l'onglet des annulés
+        mvc.perform(get("/api/dossiers").param("q", numero)).andExpect(jsonPath("$.page.totalElements").value(0));
+        mvc.perform(get("/api/dossiers").param("q", numero).param("statut", "ANNULE"))
+                .andExpect(jsonPath("$.content[0].numeroRapport").value(numero));
+        // Clos : ni modification, ni validation, ni nouvelle annulation
+        mvc.perform(put("/api/dossiers/{numero}", numero).contentType(MediaType.APPLICATION_JSON)
+                .content(modification(annule).toString())).andExpect(status().isConflict());
+        mvc.perform(post("/api/dossiers/{numero}/validation", numero)).andExpect(status().isConflict());
+        mvc.perform(post("/api/dossiers/{numero}/annulation", numero).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"motif\":\"encore\"}")).andExpect(status().isConflict());
+        mvc.perform(get("/api/dossiers/{numero}/historique", numero))
+                .andExpect(jsonPath("$[?(@.action == 'ANNULATION')].nouvelleValeur", hasItem("ANNULE")));
+
+        // Le bon PDF, même n°, est accepté : il devient le dossier actif ; l'import annulé reste consultable par son id
+        importer(RapportPdfFactice.numero(numero));
+        mvc.perform(get("/api/dossiers/{numero}", numero))
+                .andExpect(jsonPath("$.statut").value("PRET_A_VALIDER"));
+        mvc.perform(get("/api/dossiers/{numero}", numero).param("id", String.valueOf(idErrone)))
+                .andExpect(jsonPath("$.statut").value("ANNULE"));
+        mvc.perform(get("/api/dossiers/{numero}/historique", numero).param("id", String.valueOf(idErrone)))
+                .andExpect(jsonPath("$[*].action", hasItem("ANNULATION")));
+        mvc.perform(post("/api/dossiers/validation-groupee").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"numeros\":[\"" + numero + "\"]}"))
+                .andExpect(jsonPath("$.valides").value(1))
+                .andExpect(jsonPath("$.ignores.length()").value(0));
+    }
+
+    @Test
+    @WithMockUser(username = "gestionnaire", roles = "GESTIONNAIRE")
+    void p9_seulLAdministrateurAnnule_leGestionnaireArchiveUnDossierValide() throws Exception {
+        String numero = importer(RapportPdfFactice.numero(nouveauNumero()));
+
+        mvc.perform(post("/api/dossiers/{numero}/annulation", numero).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"motif\":\"erreur\"}")).andExpect(status().isForbidden());
+        mvc.perform(post("/api/dossiers/{numero}/archivage", numero)).andExpect(status().isConflict());
+
+        mvc.perform(post("/api/dossiers/{numero}/validation", numero)).andExpect(status().isOk());
+        JsonNode archive = lire(post("/api/dossiers/{numero}/archivage", numero));
+        assertThat(archive.get("statut").asText()).isEqualTo("ARCHIVE");
+        assertThat(archive.get("validePar").asText()).as("la trace de la validation reste").isEqualTo("gestionnaire");
+
+        mvc.perform(post("/api/dossiers/{numero}/archivage", numero)).andExpect(status().isConflict());
+        mvc.perform(put("/api/dossiers/{numero}", numero).contentType(MediaType.APPLICATION_JSON)
+                .content(modification(archive).toString())).andExpect(status().isConflict());
+        mvc.perform(get("/api/dossiers").param("q", numero))
+                .andExpect(jsonPath("$.content[0].statut").value("ARCHIVE"));
+        mvc.perform(get("/api/dossiers/{numero}/historique", numero))
+                .andExpect(jsonPath("$[?(@.action == 'ARCHIVAGE')].nouvelleValeur", hasItem("ARCHIVE")));
+    }
+
+    @Test
+    @WithMockUser(username = "consultant", roles = "CONSULTATION")
+    void p9_unConsultantNArchivePas() throws Exception {
+        mvc.perform(post("/api/dossiers/{numero}/archivage", "X")).andExpect(status().isForbidden());
+    }
+
     // ------------------------------------------------------------------ comptes et journal
 
     @Test

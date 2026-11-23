@@ -27,7 +27,8 @@ final class Libelles {
             case A_VERIFIER -> "À vérifier";
             case PRET_A_VALIDER -> "Prêt à valider";
             case VALIDE -> "Validé";
-            default -> s.name();
+            case ARCHIVE -> "Archivé";
+            case ANNULE -> "Annulé";
         };
     }
 

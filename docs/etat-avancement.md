@@ -30,7 +30,7 @@
 | P3 | Validation humaine | Seul un gestionnaire actif valide (unitaire ou en lot), contrainte en base |
 | P4 | Cohérence des montants | `ControleCoherenceService` (28 contrôles) |
 | P5 | TVA | Indemnisation sur HT si TVA récupérable, sur TTC sinon |
-| P6 | Cycle de vie | Statuts En cours → … → Validé → Archivé ; « Prêt à valider » ajouté (D2) |
+| P6 | Cycle de vie | Statuts En cours → … → Validé → Archivé ; « Prêt à valider » ajouté (D2) ; archivage d'un dossier validé et annulation d'un import erroné par l'administrateur (statut Annulé, rien n'est supprimé, V12) |
 | P7 | Traçabilité | Journal d'audit en ajout seul (triggers), consultable et exportable |
 | P8 | Référentiels | Énumérations Java / TypeScript : postes, types de pièces, zones 1–8, contrats |
 | P9 | Accès selon le rôle | `@PreAuthorize` sur chaque route ; écrans masqués selon le rôle |

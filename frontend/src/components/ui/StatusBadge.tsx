@@ -9,6 +9,7 @@ export const CLASSES_STATUT: Record<StatutAffiche, string> = {
   PRET_A_VALIDER: "ready",
   VALIDE: "validated",
   ARCHIVE: "archived",
+  ANNULE: "cancelled",
   REFUSE: "refused",
 };
 

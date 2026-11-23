@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type DragEvent } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import { messageErreur } from "@/api/client";
 import { adresseDossier, ROUTES } from "@/app/routes";
@@ -10,7 +10,7 @@ import { PageHead } from "@/components/ui/PageHead";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { LIBELLES_STATUT_IMPORT, TAILLE_MAX_IMPORT_MO, type RecapitulatifLot, type ResultatImport } from "@/domain/imports";
 import { useUtilisateur } from "@/features/auth/AuthContext";
-import { clesImports, historiqueImports, importerFichiers, recapitulatifLot } from "./api";
+import { clesImports, decouperEnEnvois, fusionnerLots, historiqueImports, importerFichiers, recapitulatifLot } from "./api";
 
 const TAILLE_MAX_OCTETS = TAILLE_MAX_IMPORT_MO * 1024 * 1024;
 
@@ -25,26 +25,36 @@ export default function ImportPage() {
   const champFichiers = useRef<HTMLInputElement>(null);
   const [survol, setSurvol] = useState(false);
   const [ignores, setIgnores] = useState<string[]>([]);
-  const [lot, setLot] = useState<string | null>(null);
+  // Un gros dépôt part en plusieurs envois (40 fichiers, 100 Mo au plus) : un lot serveur par envoi
+  const [lots, setLots] = useState<string[]>([]);
+  const [envoi, setEnvoi] = useState<{ fait: number; total: number } | null>(null);
 
   const depot = useMutation({
-    mutationFn: importerFichiers,
-    onSuccess: (recap) => {
-      queryClient.setQueryData(clesImports.lot(recap.lot), recap);
-      setLot(recap.lot);
+    mutationFn: async (fichiers: File[]) => {
+      const envois = decouperEnEnvois(fichiers);
+      setLots([]);
+      for (let i = 0; i < envois.length; i++) {
+        setEnvoi({ fait: i, total: envois.length });
+        const recap = await importerFichiers(envois[i]);
+        queryClient.setQueryData(clesImports.lot(recap.lot), recap);
+        // Le lot est suivi dès son arrivée : son traitement avance pendant l'envoi suivant
+        setLots((l) => [...l, recap.lot]);
+      }
     },
+    onSettled: () => setEnvoi(null),
   });
 
-  const suivi = useQuery({
-    queryKey: clesImports.lot(lot),
-    queryFn: () => recapitulatifLot(lot!),
-    enabled: lot !== null,
-    refetchInterval: (requete) => (requete.state.data?.statut === "EN_COURS" ? 1000 : false),
+  const suivis = useQueries({
+    queries: lots.map((lot) => ({
+      queryKey: clesImports.lot(lot),
+      queryFn: () => recapitulatifLot(lot),
+      refetchInterval: (requete: { state: { data?: RecapitulatifLot } }) => (requete.state.data?.statut === "EN_COURS" ? 1000 : false),
+    })),
   });
 
   const historique = useQuery({ queryKey: clesImports.historique(false), queryFn: () => historiqueImports(false) });
 
-  const recap = suivi.data;
+  const recap = fusionnerLots(suivis.flatMap((s) => (s.data ? [s.data] : [])));
   useEffect(() => {
     if (recap?.statut === "TERMINE") {
       void queryClient.invalidateQueries({ queryKey: clesImports.historique(false) });
@@ -75,9 +85,10 @@ export default function ImportPage() {
       <input ref={champFichiers} type="file" accept="application/pdf,.pdf" multiple hidden aria-label="Fichiers PDF à importer"
         onChange={(e) => { deposer(e.target.files); e.target.value = ""; }} />
       <Button icon="plus" disabled={depot.isPending} onClick={() => champFichiers.current?.click()}>
-        {depot.isPending ? "Envoi en cours…" : "Sélectionner des fichiers"}
+        {depot.isPending ? (envoi && envoi.total > 1 ? `Envoi ${envoi.fait + 1} sur ${envoi.total}…` : "Envoi en cours…") : "Sélectionner des fichiers"}
       </Button>
-      {depot.isError && <p className="import-erreur" role="alert">{messageErreur(depot.error, "L’import a échoué.")}</p>}
+      {depot.isError && <p className="import-erreur" role="alert">{messageErreur(depot.error, "L’import a échoué.")}
+        {lots.length > 0 && " Les fichiers des envois précédents ont bien été reçus : redéposez le reste (les doublons seront écartés)."}</p>}
       {ignores.length > 0 && <ul className="import-ignores">{ignores.map((m) => <li key={m}>Ignoré — {m}</li>)}</ul>}
     </article>
 

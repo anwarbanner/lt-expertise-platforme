@@ -22,7 +22,26 @@ public interface RapportExpertiseRepository
     /** Détection d'un numéro déjà enregistré (P2). */
     boolean existsByNumeroRapport(String numeroRapport);
 
-    Optional<RapportExpertise> findByNumeroRapport(String numeroRapport);
+    /**
+     * Dossiers portant ce n°, du plus récent au plus ancien : au plus un dossier actif, et les imports annulés
+     * (le n° n'est unique que parmi les dossiers non annulés).
+     */
+    List<RapportExpertise> findAllByNumeroRapportOrderByIdDesc(String numeroRapport);
+
+    /** Le dossier actif portant ce n° ; à défaut, le dernier import annulé. */
+    default Optional<RapportExpertise> findByNumeroRapport(String numeroRapport) {
+        List<RapportExpertise> trouves = findAllByNumeroRapportOrderByIdDesc(numeroRapport);
+        return trouves.stream().filter(r -> r.getStatut() != StatutDossier.ANNULE).findFirst()
+                .or(() -> trouves.stream().findFirst());
+    }
+
+    /** Le dossier actif portant ce n°, ou, si {@code id} est donné, ce dossier précis (un import annulé). */
+    default Optional<RapportExpertise> findByNumeroRapport(String numeroRapport, Long id) {
+        if (id == null) {
+            return findByNumeroRapport(numeroRapport);
+        }
+        return findById(id).filter(r -> numeroRapport.equals(r.getNumeroRapport()));
+    }
 
     /** Dossiers cochés pour une validation en lot. */
     List<RapportExpertise> findByNumeroRapportIn(Collection<String> numeros);

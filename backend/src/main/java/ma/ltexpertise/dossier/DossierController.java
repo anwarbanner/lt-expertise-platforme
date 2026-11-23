@@ -1,6 +1,8 @@
 package ma.ltexpertise.dossier;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import ma.ltexpertise.dossier.DossierDtos.DossierDetail;
 import ma.ltexpertise.dossier.DossierDtos.DossierModification;
 import ma.ltexpertise.dossier.DossierDtos.DossierResume;
@@ -35,7 +37,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/** Dossiers : recherche (F7), fiche (F8), vérification et modification (F5), validation (P3), historique (P7). */
+/**
+ * Dossiers : recherche (F7), fiche (F8), vérification et modification (F5), validation (P3), archivage et annulation
+ * d'un import erroné (P6), historique (P7).
+ */
 @RestController
 @RequestMapping("/api/dossiers")
 public class DossierController {
@@ -86,10 +91,11 @@ public class DossierController {
         return service.compagnies();
     }
 
+    /** {@code id} : un import annulé précis, quand un autre dossier porte désormais le même n°. */
     @GetMapping("/{numero}")
     @PreAuthorize("isAuthenticated()")
-    public DossierDetail detail(@PathVariable String numero) {
-        return service.detail(numero).orElseThrow(DossierIntrouvableException::new);
+    public DossierDetail detail(@PathVariable String numero, @RequestParam(required = false) Long id) {
+        return service.detail(numero, id).orElseThrow(DossierIntrouvableException::new);
     }
 
     @PutMapping("/{numero}")
@@ -104,6 +110,23 @@ public class DossierController {
         return service.valider(numero, utilisateurCourant.obtenir());
     }
 
+    /** Archivage d'un dossier validé (P6). */
+    @PostMapping("/{numero}/archivage")
+    @PreAuthorize("hasAnyRole('GESTIONNAIRE', 'ADMINISTRATEUR')")
+    public DossierDetail archiver(@PathVariable String numero) {
+        return service.archiver(numero, utilisateurCourant.obtenir());
+    }
+
+    /** Annulation d'un import erroné (P6), réservée à l'administrateur, motif obligatoire. */
+    @PostMapping("/{numero}/annulation")
+    @PreAuthorize("hasRole('ADMINISTRATEUR')")
+    public DossierDetail annuler(@PathVariable String numero, @Valid @RequestBody Annulation annulation) {
+        return service.annuler(numero, annulation.motif(), utilisateurCourant.obtenir());
+    }
+
+    public record Annulation(@NotBlank @Size(max = 500) String motif) {
+    }
+
     /** Validation en lot (P3) : dossiers cochés, ou tous les prêts à valider répondant aux filtres. */
     @PostMapping("/validation-groupee")
     @PreAuthorize("hasAnyRole('GESTIONNAIRE', 'ADMINISTRATEUR')")
@@ -113,8 +136,8 @@ public class DossierController {
 
     @GetMapping("/{numero}/historique")
     @PreAuthorize("isAuthenticated()")
-    public List<EvenementHistorique> historique(@PathVariable String numero) {
-        return service.historique(numero);
+    public List<EvenementHistorique> historique(@PathVariable String numero, @RequestParam(required = false) Long id) {
+        return service.historique(numero, id);
     }
 
     @ExceptionHandler(DossierIntrouvableException.class)

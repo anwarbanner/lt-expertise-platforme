@@ -100,12 +100,21 @@ public class ServiceDossier {
 
     @Transactional(readOnly = true)
     public Optional<DossierDetail> detail(String numero) {
-        return rapports.findByNumeroRapport(numero).map(ServiceDossier::detail);
+        return detail(numero, null);
+    }
+
+    /** @param id identifiant d'un import annulé portant ce n° ; {@code null} = le dossier actif */
+    @Transactional(readOnly = true)
+    public Optional<DossierDetail> detail(String numero, Long id) {
+        return rapports.findByNumeroRapport(numero, id).map(ServiceDossier::detail);
     }
 
     @Transactional
     public DossierDetail modifier(String numero, DossierModification m, Utilisateur auteur) {
         RapportExpertise r = rapports.findByNumeroRapport(numero).orElseThrow(DossierIntrouvableException::new);
+        if (r.estClos()) {
+            throw new ValidationRefuseeException("Un dossier archivé ou annulé ne se modifie plus.");
+        }
         if (r.getVersion() != m.version()) {
             throw new ObjectOptimisticLockingFailureException(RapportExpertise.class, r.getId());
         }
@@ -179,6 +188,42 @@ public class ServiceDossier {
     }
 
     /**
+     * Archivage d'un dossier validé (P6) par un gestionnaire ou un administrateur. Le dossier reste consultable et
+     * compté dans les statistiques ; il ne se modifie plus.
+     */
+    @Transactional
+    public DossierDetail archiver(String numero, Utilisateur gestionnaire) {
+        RapportExpertise r = rapports.findByNumeroRapport(numero).orElseThrow(DossierIntrouvableException::new);
+        StatutDossier avant = r.getStatut();
+        r.archiver(gestionnaire);
+        OffsetDateTime maintenant = OffsetDateTime.now(horloge);
+        journal.save(new JournalAudit(ActionAudit.ARCHIVAGE, gestionnaire, maintenant)
+                .surEntite(RapportExpertise.class.getSimpleName(), r.getId(), r.getId())
+                .avecChangement("statut", avant.name(), StatutDossier.ARCHIVE.name()));
+        rapports.saveAndFlush(r);
+        return detail(r);
+    }
+
+    /**
+     * Annulation d'un import erroné (P6) par un administrateur, motif obligatoire. Rien n'est supprimé : le PDF
+     * original (P1) et l'historique (P7) restent. Le dossier sort des listes et des statistiques, et le bon PDF
+     * portant le même n° peut être réimporté.
+     */
+    @Transactional
+    public DossierDetail annuler(String numero, String motif, Utilisateur administrateur) {
+        RapportExpertise r = rapports.findByNumeroRapport(numero).orElseThrow(DossierIntrouvableException::new);
+        StatutDossier avant = r.getStatut();
+        OffsetDateTime maintenant = OffsetDateTime.now(horloge);
+        r.annuler(administrateur, motif, maintenant);
+        journal.save(new JournalAudit(ActionAudit.ANNULATION, administrateur, maintenant)
+                .surEntite(RapportExpertise.class.getSimpleName(), r.getId(), r.getId())
+                .avecChangement("statut", avant.name(), StatutDossier.ANNULE.name())
+                .avecDetails(Map.of("motif", r.getMotifAnnulation())));
+        rapports.saveAndFlush(r);
+        return detail(r);
+    }
+
+    /**
      * Validation en lot par un gestionnaire (P3) : les dossiers cochés, ou tous les dossiers prêts à valider qui
      * répondent aux filtres. Chaque dossier passe par la même règle et la même trace (P7) qu'une validation unitaire ;
      * ceux qui ne sont pas prêts sont ignorés avec leur motif, sans bloquer les autres.
@@ -215,7 +260,7 @@ public class ServiceDossier {
             for (int debut = 0; debut < numeros.size(); debut += taillePaquet) {
                 List<String> tranche = numeros.subList(debut, Math.min(debut + taillePaquet, numeros.size()));
                 Paquet p = transaction.execute(etat -> {
-                    List<RapportExpertise> trouves = rapports.findByNumeroRapportIn(tranche);
+                    List<RapportExpertise> trouves = sansDoublonAnnule(rapports.findByNumeroRapportIn(tranche));
                     Paquet resultat = validerPaquet(trouves, gestionnaire, maintenant);
                     tranche.stream().filter(n -> trouves.stream().noneMatch(r -> n.equals(r.getNumeroRapport())))
                             .forEach(n -> resultat.ignores().add(new DossierIgnore(n, "Dossier introuvable.")));
@@ -259,9 +304,17 @@ public class ServiceDossier {
         return new Paquet(valides, ignores, dernierId, lot.size());
     }
 
+    /** Un n° porté par un dossier actif et par un import annulé : seul le dossier actif est retenu. */
+    private static List<RapportExpertise> sansDoublonAnnule(List<RapportExpertise> trouves) {
+        return trouves.stream().filter(r -> r.getStatut() != StatutDossier.ANNULE || trouves.stream().noneMatch(
+                a -> a != r && a.getStatut() != StatutDossier.ANNULE && a.getNumeroRapport().equals(r.getNumeroRapport())))
+                .toList();
+    }
+
     private static String motifNonPret(StatutDossier statut) {
         return switch (statut) {
             case VALIDE, ARCHIVE -> "Déjà validé.";
+            case ANNULE -> "Import annulé.";
             case A_VERIFIER -> "Un contrôle bloquant échoue : à corriger à l'écran de vérification.";
             case A_COMPLETER -> "Une donnée essentielle manque (montant, procédure ou TVA).";
             default -> "Le dossier n'est pas prêt à valider (statut " + statut + ").";
@@ -269,8 +322,8 @@ public class ServiceDossier {
     }
 
     @Transactional(readOnly = true)
-    public List<EvenementHistorique> historique(String numero) {
-        RapportExpertise r = rapports.findByNumeroRapport(numero).orElseThrow(DossierIntrouvableException::new);
+    public List<EvenementHistorique> historique(String numero, Long id) {
+        RapportExpertise r = rapports.findByNumeroRapport(numero, id).orElseThrow(DossierIntrouvableException::new);
         return journal.findByRapportIdOrderByHorodatageAscIdAsc(r.getId()).stream()
                 .map(j -> new EvenementHistorique(j.getHorodatage(), j.getAction().name(), j.getIdentifiantUtilisateur(),
                         j.getChamp(), j.getAncienneValeur(), j.getNouvelleValeur(), j.getDetails()))
@@ -428,8 +481,9 @@ public class ServiceDossier {
                         .map(ResultatControle::getChamp).toList(),
                 r.getImportFichier() == null ? null : r.getImportFichier().getId(),
                 r.getImportFichier() == null ? null : r.getImportFichier().getNomFichier(),
-                r.getValidePar() == null ? null : r.getValidePar().getIdentifiant(), r.getValideLe(), r.getCreeLe(),
-                r.getVersion());
+                r.getValidePar() == null ? null : r.getValidePar().getIdentifiant(), r.getValideLe(),
+                r.getAnnulePar() == null ? null : r.getAnnulePar().getIdentifiant(), r.getAnnuleLe(),
+                r.getMotifAnnulation(), r.getCreeLe(), r.getVersion());
     }
 
     private static PartieDto partie(Partie p) {

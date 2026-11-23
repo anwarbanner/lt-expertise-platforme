@@ -16,6 +16,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static ma.ltexpertise.statistiques.ServiceStatistiques.SANS_ANNULES;
 import static ma.ltexpertise.statistiques.ServiceStatistiques.contient;
 
 /**
@@ -79,7 +80,7 @@ public class ServiceRecherches {
     @Transactional(readOnly = true)
     public ResultatPieces pieces(FiltresPieces f, Tableau tableau) {
         MapSqlParameterSource p = new MapSqlParameterSource();
-        StringBuilder filtre = new StringBuilder(" where l.type_piece is not null");
+        StringBuilder filtre = new StringBuilder(" where l.type_piece is not null" + SANS_ANNULES);
         contient(filtre, p, "l.designation", "piece", f.piece());
         if (f.type() != null && !f.type().isBlank()) {
             filtre.append(" and l.type_piece = :type");
@@ -122,7 +123,8 @@ public class ServiceRecherches {
     @Transactional(readOnly = true)
     public ResultatValeurs valeurs(FiltresValeurs f, Tableau tableau) {
         MapSqlParameterSource p = new MapSqlParameterSource();
-        StringBuilder filtre = new StringBuilder(" where (achat.valeur_montant is not null or venale.valeur_montant is not null)");
+        StringBuilder filtre = new StringBuilder(" where (achat.valeur_montant is not null or venale.valeur_montant is not null)"
+                + SANS_ANNULES);
         contient(filtre, p, "v.marque", "marque", f.marque());
         contient(filtre, p, "v.modele", "modele", f.modele());
         contient(filtre, p, "v.type_mine", "typeMine", f.typeMine());

@@ -153,6 +153,7 @@ td > strong { color: var(--navy); font-weight: 650; }
 .status.ready { background: #eaf2ff; color: #2563bd; }
 .status.validated { background: #e9f7ee; color: #13833d; }
 .status.archived { background: #e7e8ec; color: #444754; }
+.status.cancelled { background: #f1f1f3; color: #6b6e7a; text-decoration: line-through; }
 
 /* Component board */
 .board { padding-bottom: 70px; }

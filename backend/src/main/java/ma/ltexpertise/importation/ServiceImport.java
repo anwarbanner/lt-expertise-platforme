@@ -127,7 +127,9 @@ public class ServiceImport {
         }
         fichier.setGabaritDetecte(extrait.getGabarit());
 
-        Optional<RapportExpertise> existant = rapports.findByNumeroRapport(analyse.numeroRapport());
+        // Un import annulé ne bloque pas le n° : le bon PDF peut être réimporté (P2, P6)
+        Optional<RapportExpertise> existant = rapports.findByNumeroRapport(analyse.numeroRapport())
+                .filter(r -> r.getStatut() != StatutDossier.ANNULE);
         if (existant.isPresent() && !estDossierEnCoursSansPdf(existant.get())) {
             String motif = "N° de rapport " + analyse.numeroRapport() + " déjà enregistré (dossier "
                     + existant.get().getId() + ").";

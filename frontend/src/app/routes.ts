@@ -39,6 +39,12 @@ export function peutAcceder(role: Role, ecran: keyof typeof ROLES_PAR_ECRAN): bo
 }
 
 /** Écran d'ouverture d'un dossier : vérification pour un gestionnaire tant qu'il n'est pas validé, sinon fiche. */
-export function adresseDossier(numero: string, statut: string, role: Role): string {
-  return statut !== "VALIDE" && peutAcceder(role, "verification") ? ROUTES.verification(numero) : ROUTES.dossier(numero);
+/**
+ * Écran d'ouverture d'un dossier : la vérification pour un gestionnaire tant que le dossier n'est ni validé ni clos,
+ * sinon la fiche. Un import annulé s'ouvre par son identifiant, car le bon PDF a pu être réimporté sous le même n°.
+ */
+export function adresseDossier(numero: string, statut: string, role: Role, id?: number): string {
+  if (statut === "ANNULE") return ROUTES.dossier(numero) + (id != null ? `?id=${id}` : "");
+  const modifiable = !["VALIDE", "ARCHIVE"].includes(statut);
+  return modifiable && peutAcceder(role, "verification") ? ROUTES.verification(numero) : ROUTES.dossier(numero);
 }

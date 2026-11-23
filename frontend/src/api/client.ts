@@ -86,6 +86,7 @@ export function messageErreur(erreur: unknown, parDefaut = "Une erreur est surve
     if (message) return message;
     if (!erreur.response) return "Serveur injoignable. Vérifiez que l'application est démarrée.";
     if (erreur.response.status === 403) return "Vous n'avez pas les droits pour cette action.";
+    if (erreur.response.status === 413) return "Envoi trop volumineux pour le serveur : déposez moins de fichiers à la fois.";
   }
   return parDefaut;
 }

@@ -65,6 +65,12 @@ public class RapportExpertise {
     private static final Set<StatutDossier> STATUTS_VALIDABLES =
             EnumSet.of(StatutDossier.IMPORTE, StatutDossier.A_COMPLETER, StatutDossier.A_VERIFIER, StatutDossier.PRET_A_VALIDER);
 
+    /** Un import erroné s'annule tant que le dossier n'est pas validé (P6). */
+    public static final Set<StatutDossier> STATUTS_ANNULABLES = STATUTS_VALIDABLES;
+
+    /** Statuts de fin de cycle : le dossier ne se modifie plus. */
+    public static final Set<StatutDossier> STATUTS_CLOS = EnumSet.of(StatutDossier.ARCHIVE, StatutDossier.ANNULE);
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -206,6 +212,16 @@ public class RapportExpertise {
 
     private OffsetDateTime valideLe;
 
+    /** Administrateur qui a annulé l'import erroné (statut ANNULE). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "annule_par")
+    private Utilisateur annulePar;
+
+    private OffsetDateTime annuleLe;
+
+    @Column(columnDefinition = "text")
+    private String motifAnnulation;
+
     @CreatedDate
     @Column(nullable = false, updatable = false)
     private OffsetDateTime creeLe;
@@ -285,9 +301,60 @@ public class RapportExpertise {
         this.valideLe = Objects.requireNonNull(maintenant, "maintenant");
     }
 
-    /** Change le statut, sauf vers VALIDE qui passe obligatoirement par {@link #valider}. */
+    /**
+     * Archive un dossier validé (P6). La trace de la validation est conservée ; le dossier ne se modifie plus.
+     */
+    public void archiver(Utilisateur gestionnaire) {
+        Objects.requireNonNull(gestionnaire, "gestionnaire");
+        boolean habilite = gestionnaire.aLeRole(Role.GESTIONNAIRE) || gestionnaire.aLeRole(Role.ADMINISTRATEUR);
+        if (!habilite || !gestionnaire.isActif()) {
+            throw new ValidationRefuseeException("Seul un gestionnaire ou un administrateur actif peut archiver un dossier.");
+        }
+        if (statut != StatutDossier.VALIDE) {
+            throw new ValidationRefuseeException("Seul un dossier validé peut être archivé.");
+        }
+        this.statut = StatutDossier.ARCHIVE;
+    }
+
+    /**
+     * Annule un import erroné (P6). Réservé à un administrateur actif, motif obligatoire, et seulement avant la
+     * validation. Rien n'est supprimé : le PDF original (P1) et l'historique (P7) restent consultables.
+     */
+    public void annuler(Utilisateur administrateur, String motif, OffsetDateTime maintenant) {
+        Objects.requireNonNull(administrateur, "administrateur");
+        if (!administrateur.aLeRole(Role.ADMINISTRATEUR) || !administrateur.isActif()) {
+            throw new ValidationRefuseeException("Seul un administrateur actif peut annuler un import.");
+        }
+        if (motif == null || motif.isBlank()) {
+            throw new ValidationRefuseeException("Le motif de l'annulation est obligatoire.");
+        }
+        if (!STATUTS_ANNULABLES.contains(statut)) {
+            throw new ValidationRefuseeException(statut == StatutDossier.VALIDE || statut == StatutDossier.ARCHIVE
+                    ? "Un dossier validé ne s'annule pas : il s'archive."
+                    : "Un dossier au statut " + statut + " ne peut pas être annulé.");
+        }
+        this.statut = StatutDossier.ANNULE;
+        this.annulePar = administrateur;
+        this.annuleLe = Objects.requireNonNull(maintenant, "maintenant");
+        this.motifAnnulation = motif.strip();
+    }
+
+    public boolean estClos() {
+        return STATUTS_CLOS.contains(statut);
+    }
+
+    /**
+     * Change le statut, sauf vers VALIDE ({@link #valider}), ARCHIVE ({@link #archiver}) ou ANNULE ({@link #annuler}),
+     * et jamais pour un dossier clos.
+     */
     public void changerStatut(StatutDossier nouveauStatut) {
         verifierStatutHorsValidation(nouveauStatut);
+        if (STATUTS_CLOS.contains(nouveauStatut)) {
+            throw new ValidationRefuseeException("Le statut " + nouveauStatut + " s'obtient par l'action dédiée.");
+        }
+        if (estClos()) {
+            throw new ValidationRefuseeException("Un dossier archivé ou annulé ne se modifie plus.");
+        }
         if (statut == StatutDossier.VALIDE) {
             // Un dossier validé puis modifié doit être validé de nouveau (P3, P6) ; la trace reste au journal.
             validePar = null;
@@ -739,6 +806,18 @@ public class RapportExpertise {
 
     public OffsetDateTime getValideLe() {
         return valideLe;
+    }
+
+    public Utilisateur getAnnulePar() {
+        return annulePar;
+    }
+
+    public OffsetDateTime getAnnuleLe() {
+        return annuleLe;
+    }
+
+    public String getMotifAnnulation() {
+        return motifAnnulation;
     }
 
     public OffsetDateTime getCreeLe() {

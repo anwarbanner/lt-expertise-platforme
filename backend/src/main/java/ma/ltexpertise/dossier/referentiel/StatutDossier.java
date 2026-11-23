@@ -9,5 +9,11 @@ public enum StatutDossier {
     /** Contrôles conformes et champs complets : en attente de la validation d'un gestionnaire (P3). */
     PRET_A_VALIDER,
     VALIDE,
-    ARCHIVE
+    /** Dossier validé puis clos (P6) ; ne se modifie plus. */
+    ARCHIVE,
+    /**
+     * Import erroné écarté par un administrateur, avec son motif. Rien n'est supprimé (P1, P7) : le dossier sort des
+     * listes et des statistiques, et le bon PDF portant le même n° peut être réimporté.
+     */
+    ANNULE
 }

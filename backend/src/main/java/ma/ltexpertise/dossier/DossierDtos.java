@@ -104,7 +104,8 @@ public final class DossierDtos {
                                 String commentaire, List<ValeurCommentaireDto> valeursCommentaire,
                                 List<LigneDetailDto> lignesDetail, List<ControleDto> controles,
                                 List<String> champsASaisir, Long importId, String nomFichier, String validePar,
-                                OffsetDateTime valideLe, OffsetDateTime creeLe, int version) {
+                                OffsetDateTime valideLe, String annulePar, OffsetDateTime annuleLe,
+                                String motifAnnulation, OffsetDateTime creeLe, int version) {
     }
 
     /**

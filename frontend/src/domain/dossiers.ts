@@ -154,6 +154,10 @@ export interface DossierDetail {
   nomFichier: string | null;
   validePar: string | null;
   valideLe: string | null;
+  /** Import annulé (statut ANNULE) : par qui, quand et pourquoi. */
+  annulePar: string | null;
+  annuleLe: string | null;
+  motifAnnulation: string | null;
   creeLe: string;
   version: number;
 }

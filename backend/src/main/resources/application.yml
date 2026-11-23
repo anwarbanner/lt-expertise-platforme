@@ -20,6 +20,10 @@ spring:
 
 server:
   port: ${SERVER_PORT:8080}
+  tomcat:
+    # Nombre de fichiers par requête multipart (50 par défaut depuis Spring Boot 3.5 : au-delà, 413). L'écran d'import
+    # envoie un gros dépôt par paquets de 40 fichiers et 100 Mo (frontend/src/features/imports/api.ts).
+    max-part-count: 100
 
 lt:
   # PDF originaux (P1) : MinIO local (par défaut) ou dossier local, jamais un service cloud (P11).

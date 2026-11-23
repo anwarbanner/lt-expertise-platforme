@@ -29,6 +29,9 @@ public class ServiceStatistiques {
     private static final String DATE_DOSSIER = "coalesce(r.date_rapport, cast(r.cree_le as date))";
     private static final int MOIS_AFFICHES = 12;
 
+    /** Condition SQL (alias {@code r}) qui écarte les imports annulés de toutes les statistiques et recherches (P6). */
+    public static final String SANS_ANNULES = " and r.statut <> 'ANNULE'";
+
     private final NamedParameterJdbcTemplate jdbc;
     private final Clock horloge;
 
@@ -41,9 +44,10 @@ public class ServiceStatistiques {
     @Transactional(readOnly = true)
     public TableauDeBord tableauDeBord(YearMonth periode) {
         MapSqlParameterSource p = new MapSqlParameterSource();
-        String filtre = "";
+        // Un import annulé n'entre dans aucun indicateur (P6)
+        String filtre = SANS_ANNULES;
         if (periode != null) {
-            filtre = " and " + DATE_DOSSIER + " between :debut and :fin";
+            filtre += " and " + DATE_DOSSIER + " between :debut and :fin";
             p.addValue("debut", Date.valueOf(periode.atDay(1))).addValue("fin", Date.valueOf(periode.atEndOfMonth()));
         }
 
@@ -76,7 +80,8 @@ public class ServiceStatistiques {
         jdbc.query("select to_char(" + DATE_DOSSIER + ", 'YYYY-MM') as mois, count(*) as n, "
                         + "coalesce(sum(r.montant_indemnisation), 0) as montant, coalesce(sum(r.total_mo_ttc), 0) as mo, "
                         + "coalesce(sum(r.total_fournitures_ttc), 0) as fournitures from rapport_expertise r "
-                        + "where r.statut <> 'EN_COURS' and " + DATE_DOSSIER + " between :debutMois and :finMois group by 1",
+                        + "where r.statut <> 'EN_COURS'" + SANS_ANNULES + " and " + DATE_DOSSIER
+                        + " between :debutMois and :finMois group by 1",
                 new MapSqlParameterSource().addValue("debutMois", Date.valueOf(debut.atDay(1)))
                         .addValue("finMois", Date.valueOf(fin.atEndOfMonth())),
                 rs -> {
@@ -134,7 +139,7 @@ public class ServiceStatistiques {
     @Transactional(readOnly = true)
     public AnalysePrix prix(FiltresPrix f, Tableau tableau) {
         MapSqlParameterSource p = new MapSqlParameterSource();
-        StringBuilder filtre = new StringBuilder(" where l.prix_unitaire > 0 and l.type_piece is not null");
+        StringBuilder filtre = new StringBuilder(" where l.prix_unitaire > 0 and l.type_piece is not null" + SANS_ANNULES);
         contient(filtre, p, "l.designation", "designation", f.designation());
         if (f.type() != null && !f.type().isBlank()) {
             filtre.append(" and l.type_piece = :type");
