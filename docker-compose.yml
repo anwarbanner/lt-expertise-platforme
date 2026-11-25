@@ -5,7 +5,9 @@
 #
 # Le nom de projet reprend celui de l'ancien docker-compose.dev.yml : les volumes de données existants
 # (ltexpertiseprojet_lt-expertise-pgdata, ..._minio) sont réutilisés tels quels.
-# Les ports ne sont publiés que sur 127.0.0.1 : rien n'est exposé au réseau (P11).
+# L'interface est publiée sur toutes les interfaces (LT_ADRESSE=0.0.0.0) : les autres postes du réseau
+# l'ouvrent sur http://<IP du poste>:8088. LT_ADRESSE=127.0.0.1 la réserve au poste.
+# La base et MinIO ne sont publiés que sur 127.0.0.1 : jamais exposés au réseau (P11).
 # Variables : fichier .env à la racine (modèle : .env.example).
 name: ltexpertiseprojet
 
@@ -89,7 +91,7 @@ services:
       backend:
         condition: service_healthy
     ports:
-      - "127.0.0.1:${LT_PORT:-8088}:80"
+      - "${LT_ADRESSE:-0.0.0.0}:${LT_PORT:-8088}:80"
 
 volumes:
   lt-expertise-pgdata:

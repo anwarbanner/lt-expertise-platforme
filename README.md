@@ -71,7 +71,8 @@ Le mot de passe initial vient de `LT_MOT_DE_PASSE_INITIAL` ; **le changer avant 
 | `lt-expertise-postgres` | Base PostgreSQL 16 (volume `lt-expertise-pgdata`) | 127.0.0.1:5433 |
 | `lt-expertise-minio` | PDF originaux (volume `lt-expertise-minio`) | 127.0.0.1:9000, console 127.0.0.1:9001 |
 
-Les ports ne sont publiés que sur `127.0.0.1` : rien n'est exposé au réseau. Les migrations de base (Flyway)
+L'interface est publiée sur `0.0.0.0` (`LT_ADRESSE`) : depuis un autre appareil du réseau, ouvrir
+**http://<IP du poste>:8088** (IP donnée par `ipconfig`). La base et MinIO ne sont publiés que sur `127.0.0.1`. Les migrations de base (Flyway)
 s'appliquent automatiquement au démarrage du backend.
 
 ### Configuration (`.env`)
@@ -79,6 +80,7 @@ s'appliquent automatiquement au démarrage du backend.
 | Variable | Défaut | Rôle |
 |---|---|---|
 | `LT_PORT` | `8088` | Port de l'application sur le poste |
+| `LT_ADRESSE` | `0.0.0.0` | Adresse d’écoute de l’interface : `0.0.0.0` = réseau local, `127.0.0.1` = poste seul |
 | `LT_MOT_DE_PASSE_INITIAL` | `LtExpertise-Dev-2026` | Mot de passe des comptes créés sur une base vide |
 | `LT_JWT_SECRET` | vide | Clé des jetons de connexion (≥ 32 caractères). Vide : les utilisateurs se reconnectent après un redémarrage |
 | `LT_COOKIE_SECURISE` | `false` | `true` dès que l'application est servie en HTTPS |
