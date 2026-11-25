@@ -86,9 +86,9 @@ describe("routes protégées", () => {
 
 describe("mise en page commune", () => {
   it.each([
-    [GESTIONNAIRE, ["Tableau de bord", "Importer des rapports", "Dossiers", "Analyse des prix", "Recherche de pièces", "Valeur vénale / achat", "Génération des rapports"]],
-    [CONSULTANT, ["Tableau de bord", "Dossiers", "Analyse des prix", "Recherche de pièces", "Valeur vénale / achat", "Génération des rapports"]],
-    [ADMINISTRATEUR, ["Tableau de bord", "Importer des rapports", "Dossiers", "Analyse des prix", "Recherche de pièces", "Valeur vénale / achat", "Génération des rapports", "Utilisateurs"]],
+    [GESTIONNAIRE, ["Tableau de bord", "Importer des rapports", "Dossiers", "Analyse des prix", "Valeur vénale / achat", "Génération des rapports"]],
+    [CONSULTANT, ["Tableau de bord", "Dossiers", "Analyse des prix", "Valeur vénale / achat", "Génération des rapports"]],
+    [ADMINISTRATEUR, ["Tableau de bord", "Importer des rapports", "Dossiers", "Analyse des prix", "Valeur vénale / achat", "Génération des rapports", "Utilisateurs"]],
   ])("le menu de %o ne propose que ses écrans", async (utilisateur, entrees) => {
     rendreApplication(ROUTES.tableauDeBord, utilisateur);
 

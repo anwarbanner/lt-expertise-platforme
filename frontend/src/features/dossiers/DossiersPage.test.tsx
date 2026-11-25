@@ -98,3 +98,30 @@ describe("validation en lot", () => {
     expect(screen.queryByLabelText("Cocher 268202-0001")).toBeNull();
   });
 });
+
+describe("onglet « À vérifier »", () => {
+  const A_VERIFIER = [
+    dossierResume("268202-0003", "A_VERIFIER", { anomalies: 4, libellesAnomalies: ["Total MO incohérent", "Date du sinistre absente", "Prix unitaire faux (PP ET ING)", "Immatriculation absente"] }),
+    dossierResume("268202-0005", "A_VERIFIER", { anomalies: 1, libellesAnomalies: ["Montant de l’indemnisation incohérent"] }),
+  ];
+
+  it("ajoute une colonne qui détaille les anomalies de chaque dossier", async () => {
+    serveur = simulerApi((s) => s.onGet("/dossiers").reply(200, page(A_VERIFIER, 0, 10)));
+    rendreApplication(`${ROUTES.dossiers}?statut=A_VERIFIER`, GESTIONNAIRE);
+
+    expect(await screen.findByRole("columnheader", { name: "ANOMALIES" })).toBeTruthy();
+    expect(screen.getByText("Total MO incohérent")).toBeTruthy();
+    expect(screen.getByText("Prix unitaire faux (PP ET ING)")).toBeTruthy();
+    expect(screen.queryByText("Immatriculation absente")).toBeNull();
+    expect(screen.getByText("+ 1 autre")).toBeTruthy();
+    expect(screen.getByText("Montant de l’indemnisation incohérent")).toBeTruthy();
+  });
+
+  it("n'affiche pas la colonne dans les autres onglets", async () => {
+    serveur = simulerApi((s) => s.onGet("/dossiers").reply(200, page(A_VERIFIER, 0, 10)));
+    rendreApplication(ROUTES.dossiers, GESTIONNAIRE);
+
+    expect(await screen.findByText("268202-0005")).toBeTruthy();
+    expect(screen.queryByRole("columnheader", { name: "ANOMALIES" })).toBeNull();
+  });
+});

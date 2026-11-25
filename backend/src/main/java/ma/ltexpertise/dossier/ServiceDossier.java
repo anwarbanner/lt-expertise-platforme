@@ -499,11 +499,12 @@ public class ServiceDossier {
         Optional<Partie> assure = r.getPartie(TypePartie.ASSURE);
         String immatriculation = r.getVehicule() != null && r.getVehicule().getImmatriculation() != null
                 ? r.getVehicule().getImmatriculation() : assure.map(Partie::getImmatriculation).orElse(null);
-        long anomalies = r.getResultatsControle().stream().filter(c -> !c.isConforme() && c.isBloquant()).count();
+        List<String> anomalies = r.getResultatsControle().stream().filter(c -> !c.isConforme() && c.isBloquant())
+                .map(ResultatControle::getLibelle).toList();
         return new DossierResume(r.getId(), r.getNumeroRapport(), r.getStatut(), r.getNatureRapport(),
                 r.getTypeProcedure(), r.getDateSinistre(), r.getDateRapport(),
                 assure.map(Partie::getNomPrenom).orElse(null), immatriculation, r.getCompagnie(), codes(r.getZonesChoc()),
-                r.getMontantIndemnisation(), r.getCreeLe(), anomalies);
+                r.getMontantIndemnisation(), r.getCreeLe(), anomalies.size(), anomalies);
     }
 
     static DossierDetail detail(RapportExpertise r) {

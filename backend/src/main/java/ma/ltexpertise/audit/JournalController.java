@@ -1,5 +1,6 @@
 package ma.ltexpertise.audit;
 
+import ma.ltexpertise.commun.RechercheTexte;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import ma.ltexpertise.generation.ClasseurExcel;
@@ -104,7 +105,7 @@ public class JournalController {
         if (q != null && !q.isBlank()) {
             sql.append(" and (j.identifiant_utilisateur ilike :q or j.champ ilike :q or j.adresse_ip ilike :q "
                     + "or cast(j.details as text) ilike :q or r.numero_rapport ilike :q)");
-            p.addValue("q", "%" + q.strip() + "%");
+            p.addValue("q", RechercheTexte.motif(q));
         }
         if (action != null) {
             sql.append(" and j.action = :action");

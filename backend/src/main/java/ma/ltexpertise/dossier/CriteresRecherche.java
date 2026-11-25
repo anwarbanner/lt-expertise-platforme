@@ -1,6 +1,7 @@
 package ma.ltexpertise.dossier;
 
 import jakarta.persistence.criteria.Predicate;
+import ma.ltexpertise.commun.RechercheTexte;
 import jakarta.persistence.criteria.Subquery;
 import ma.ltexpertise.dossier.referentiel.StatutDossier;
 import ma.ltexpertise.dossier.referentiel.ZoneChoc;
@@ -24,20 +25,20 @@ public record CriteresRecherche(String q, StatutDossier statut, String compagnie
         return (racine, requete, cb) -> {
             List<Predicate> conditions = new ArrayList<>();
             if (q != null && !q.isBlank()) {
-                String motif = "%" + q.strip().toLowerCase(Locale.ROOT) + "%";
+                String motif = RechercheTexte.motif(q.toLowerCase(Locale.ROOT));
                 Subquery<Long> partie = requete.subquery(Long.class);
                 var p = partie.from(Partie.class);
                 partie.select(p.get("id")).where(cb.equal(p.get("rapport"), racine), cb.or(
-                        cb.like(cb.lower(p.get("nomPrenom")), motif), cb.like(cb.lower(p.get("immatriculation")), motif)));
+                        cb.like(cb.lower(p.get("nomPrenom")), motif, RechercheTexte.ECHAPPEMENT), cb.like(cb.lower(p.get("immatriculation")), motif, RechercheTexte.ECHAPPEMENT)));
                 Subquery<Long> vehicule = requete.subquery(Long.class);
                 var v = vehicule.from(Vehicule.class);
                 vehicule.select(v.get("id")).where(cb.equal(v.get("rapport"), racine),
-                        cb.like(cb.lower(v.get("immatriculation")), motif));
+                        cb.like(cb.lower(v.get("immatriculation")), motif, RechercheTexte.ECHAPPEMENT));
                 conditions.add(cb.or(
-                        cb.like(cb.lower(racine.get("numeroRapport")), motif),
-                        cb.like(cb.lower(racine.get("refSinistre")), motif),
-                        cb.like(cb.lower(racine.get("reparateur")), motif),
-                        cb.like(cb.lower(racine.get("compagnie")), motif),
+                        cb.like(cb.lower(racine.get("numeroRapport")), motif, RechercheTexte.ECHAPPEMENT),
+                        cb.like(cb.lower(racine.get("refSinistre")), motif, RechercheTexte.ECHAPPEMENT),
+                        cb.like(cb.lower(racine.get("reparateur")), motif, RechercheTexte.ECHAPPEMENT),
+                        cb.like(cb.lower(racine.get("compagnie")), motif, RechercheTexte.ECHAPPEMENT),
                         cb.exists(partie), cb.exists(vehicule)));
             }
             if (statut != null) {
@@ -47,7 +48,9 @@ public record CriteresRecherche(String q, StatutDossier statut, String compagnie
                 conditions.add(cb.notEqual(racine.get("statut"), StatutDossier.ANNULE));
             }
             if (compagnie != null && !compagnie.isBlank()) {
-                conditions.add(cb.equal(cb.lower(racine.get("compagnie")), compagnie.strip().toLowerCase(Locale.ROOT)));
+                // Correspondance partielle, sans casse
+                conditions.add(cb.like(cb.lower(racine.get("compagnie")),
+                        RechercheTexte.motif(compagnie.toLowerCase(Locale.ROOT)), RechercheTexte.ECHAPPEMENT));
             }
             if (zone != null) {
                 // Un dossier à plusieurs zones répond à chacune d'elles

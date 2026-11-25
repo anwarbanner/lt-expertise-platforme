@@ -9,6 +9,7 @@ export const ROUTES = {
   dossier: (numero: string) => `/dossiers/${encodeURIComponent(numero)}`,
   verification: (numero: string) => `/dossiers/${encodeURIComponent(numero)}/verification`,
   analysePrix: "/analyse-prix",
+  /** Ancienne adresse de la recherche de pièces, fusionnée dans l'analyse des prix : redirigée. */
   recherchePieces: "/recherche-pieces",
   valeursVenales: "/valeurs-venales",
   generation: "/generation",
@@ -28,7 +29,6 @@ export const ROLES_PAR_ECRAN = {
   dossiers: TOUS,
   verification: ["GESTIONNAIRE", "ADMINISTRATEUR"],
   analysePrix: TOUS,
-  recherchePieces: TOUS,
   valeursVenales: TOUS,
   generation: TOUS,
   utilisateurs: ["ADMINISTRATEUR"],

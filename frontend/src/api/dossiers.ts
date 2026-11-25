@@ -1,6 +1,6 @@
 import type {
   AnalysePrix, ArchivageGroupe, CompteUtilisateur, DossierDetail, DossierModification, DossierResume, EntreeJournal,
-  EvenementHistorique, FiltresPieces, FiltresPrix, FiltresValeurs, Page, ResultatPieces, ResultatValeurs,
+  EvenementHistorique, FiltresPrix, FiltresValeurs, Page, ResultatValeurs,
   ResultatArchivageGroupe, ResultatValidationGroupee, SuggestionsVehicule, TableauDeBord, ValidationGroupee,
 } from "@/domain/dossiers";
 import type { Role, StatutDossier } from "@/domain/referentiels";
@@ -33,8 +33,7 @@ export const cles = {
   historique: (numero: string, id?: number) => ["dossiers", "historique", numero, ...(id != null ? [id] : [])] as const,
   tableauDeBord: (periode: string) => ["statistiques", "tableau-de-bord", periode] as const,
   prix: (filtres: object) => ["statistiques", "prix", filtres] as const,
-  suggestions: ["recherche", "suggestions"] as const,
-  pieces: (filtres: object) => ["recherche", "pieces", filtres] as const,
+  suggestions: (vehicule: { marque?: string; modele?: string } = {}) => ["recherche", "suggestions", vehicule] as const,
   valeurs: (filtres: object) => ["recherche", "valeurs", filtres] as const,
   utilisateurs: ["utilisateurs"] as const,
   journal: (filtres: object) => ["journal", filtres] as const,
@@ -106,12 +105,9 @@ export async function analysePrix(filtres: FiltresPrix, tableau: ParametresTable
   return (await api.get<AnalysePrix>("/statistiques/prix", { params: nettoyer({ ...filtres, ...tableau }) })).data;
 }
 
-export async function suggestionsVehicule() {
-  return (await api.get<SuggestionsVehicule>("/recherche/suggestions")).data;
-}
-
-export async function rechercherPieces(filtres: FiltresPieces, tableau: ParametresTableau = {}) {
-  return (await api.get<ResultatPieces>("/recherche/pieces", { params: nettoyer({ ...filtres, ...tableau }) })).data;
+/** Marques, modèles et types mine connus ; les modèles selon la marque saisie, les types mine selon le modèle. */
+export async function suggestionsVehicule(vehicule: { marque?: string; modele?: string } = {}) {
+  return (await api.get<SuggestionsVehicule>("/recherche/suggestions", { params: nettoyer(vehicule) })).data;
 }
 
 export async function rechercherValeurs(filtres: FiltresValeurs, tableau: ParametresTableau = {}) {

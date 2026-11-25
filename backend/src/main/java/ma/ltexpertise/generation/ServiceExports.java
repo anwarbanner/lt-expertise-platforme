@@ -163,9 +163,9 @@ public class ServiceExports {
             }
             f.ajuster();
             ClasseurExcel.Feuille synthese = x.feuille("Synthèse", "Indicateur", "Valeur");
-            synthese.ligne("Lignes", a.nombre()).ligne("Prix minimum", a.minimum()).ligne("Prix moyen", a.moyenne())
-                    .ligne("Prix maximum", a.maximum());
-            a.moyenneParType().forEach((type, moyenne) -> synthese.ligne("Prix moyen " + type, moyenne));
+            synthese.ligne("Dossiers trouvés", a.dossiers()).ligne("Lignes", a.nombre())
+                    .ligne("Prix moyen", a.moyenne()).ligne("Prix maximum", a.maximum()).ligne("Prix minimum", a.minimum());
+            a.parType().forEach(t -> synthese.ligne("Lignes " + t.type(), t.nombre()).ligne("Prix moyen " + t.type(), t.moyenne()));
             synthese.ajuster();
             byte[] octets = x.octets();
             tracer(auteur, null, Map.of("export", "analyse des prix", "lignes", a.lignes().size()));

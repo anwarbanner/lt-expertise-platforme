@@ -43,14 +43,14 @@ public class StatistiquesController {
     }
 
     /**
-     * Filtres de l'analyse des prix : désignation de la pièce, type O/A/R, marque, modèle et type mine ; tableau
+     * Filtres de l'analyse des prix ({@link FiltresPrix}, lus dans la requête) : {@code designation}, {@code type}
+     * (ORIGINE, ADAPTABLE, REEMPLOI ou VIDE), {@code zones} (« 1,4 »), {@code marque}, {@code modele},
+     * {@code typeMine}, {@code annee} (MEC) et {@code chassis} ; « __VIDE__ » demande un champ non renseigné. Tableau
      * paginé ({@code page}, {@code taille}, {@code tri}, filtres de colonne {@code f_<cle>}, voir {@link Tableau}).
      */
     @GetMapping("/prix")
     @PreAuthorize("isAuthenticated()")
-    public AnalysePrix prix(@RequestParam(required = false) String designation, @RequestParam(required = false) String type,
-                            @RequestParam(required = false) String marque, @RequestParam(required = false) String modele,
-                            @RequestParam(required = false) String typeMine, @RequestParam Map<String, String> parametres) {
-        return service.prix(new FiltresPrix(designation, type, marque, modele, typeMine), Tableau.depuis(parametres));
+    public AnalysePrix prix(FiltresPrix filtres, @RequestParam Map<String, String> parametres) {
+        return service.prix(filtres, Tableau.depuis(parametres));
     }
 }

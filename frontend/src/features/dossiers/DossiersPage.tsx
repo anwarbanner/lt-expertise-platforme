@@ -86,6 +86,8 @@ export default function DossiersPage() {
     ? (confirmation.action === "valider" ? pretsCoches.length : validesCoches.length)
     : (confirmation.action === "valider" ? totalPrets : totalValides);
   // Seuls les dossiers prêts (à valider) et validés (à archiver) se cochent
+  // Onglet « À vérifier » (ou filtre « en anomalie ») : une colonne détaille les anomalies de chaque dossier
+  const avecAnomalies = params.get("statut") === "A_VERIFIER" || !!params.get("anomalies");
   const cochables = liste.data?.content.filter((d) => STATUTS_COCHABLES.includes(d.statut)) ?? [];
   const toutCoche = cochables.length > 0 && cochables.every((d) => selection.has(d.numeroRapport));
   const basculer = (dossiers: { numeroRapport: string; statut: StatutDossier }[], cocher: boolean) => setSelection((s) => {
@@ -168,11 +170,11 @@ export default function DossiersPage() {
       {liste.isPending && <p className="etat-chargement">Chargement…</p>}
       {liste.data?.content.length === 0 && <p className="etat-chargement">Aucun dossier ne correspond à ces critères.</p>}
       {liste.data && liste.data.content.length > 0 &&
-        <div className="table-scroll"><table><thead><tr>
+        <div className="table-scroll"><table className={avecAnomalies ? "avec-anomalies" : undefined}><thead><tr>
           {gestionnaire && <th className="coche"><input type="checkbox" aria-label="Cocher les dossiers de la page (prêts et validés)" checked={toutCoche}
             disabled={cochables.length === 0} onChange={() => basculer(cochables, !toutCoche)} /></th>}
           <th>{enTete("N° RAPPORT", "numeroRapport")}</th><th>{enTete("DATE SINISTRE", "dateSinistre")}</th><th>ASSURÉ</th><th>IMMATRICULATION</th>
-          <th>COMPAGNIE</th><th>ZONE DE CHOC</th><th>{enTete("INDEMNISATION (DH)", "montantIndemnisation")}</th><th>STATUT</th><th></th>
+          <th>COMPAGNIE</th><th>ZONE DE CHOC</th><th>{enTete("INDEMNISATION (DH)", "montantIndemnisation")}</th>{avecAnomalies && <th>ANOMALIES</th>}<th>STATUT</th><th></th>
         </tr></thead><tbody>{liste.data.content.map((d) =>
           <tr key={d.id} onDoubleClick={() => navigate(adresseDossier(d.numeroRapport, d.statut, role, d.id))}>
             {gestionnaire && <td className="coche"><input type="checkbox" aria-label={`Cocher ${d.numeroRapport}`} disabled={!STATUTS_COCHABLES.includes(d.statut)}
@@ -181,6 +183,7 @@ export default function DossiersPage() {
             <td><strong>{d.numeroRapport}</strong></td><td>{date(d.dateSinistre)}</td><td>{d.assure ?? "—"}</td>
             <td>{d.immatriculation ? <span className="plate">{d.immatriculation}</span> : "—"}</td><td>{d.compagnie ?? "—"}</td>
             <td>{d.zonesChoc.map((z) => ZONES_CHOC[z]).join(", ") || "—"}</td><td className="money">{montant(d.montantIndemnisation, "")}</td>
+            {avecAnomalies && <td className="liste-anomalies"><ListeAnomalies libelles={d.libellesAnomalies} /></td>}
             <td><StatusBadge statut={d.statut} />{d.anomalies > 0 && <span className="anomalies" title={`${d.anomalies} contrôle(s) ou champ(s) à revoir`}>⚠ {d.anomalies}</span>}</td>
             <td><div className="action-menu"><Button variant="quiet" onClick={() => navigate(adresseDossier(d.numeroRapport, d.statut, role, d.id))}>Ouvrir</Button></div></td>
           </tr>)}</tbody></table></div>}
@@ -195,4 +198,16 @@ export default function DossiersPage() {
       </div>}
     </article>
   </main>;
+}
+
+const ANOMALIES_AFFICHEES = 3;
+
+/** Libellés des anomalies (contrôles bloquants en échec) ; au-delà de trois, le reste est résumé et lisible au survol. */
+function ListeAnomalies({ libelles }: { libelles: string[] }) {
+  if (libelles.length === 0) return <span className="sans-anomalie">Aucune</span>;
+  const reste = libelles.length - ANOMALIES_AFFICHEES;
+  return <ul title={libelles.join("\n")}>
+    {libelles.slice(0, ANOMALIES_AFFICHEES).map((l, i) => <li key={i}>{l}</li>)}
+    {reste > 0 && <li className="autres">+ {reste} autre{reste > 1 ? "s" : ""}</li>}
+  </ul>;
 }

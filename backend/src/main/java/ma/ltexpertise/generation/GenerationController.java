@@ -86,13 +86,8 @@ public class GenerationController {
     }
 
     @GetMapping("/exports/prix")
-    public ResponseEntity<byte[]> prix(@RequestParam(required = false) String designation,
-                                       @RequestParam(required = false) String type,
-                                       @RequestParam(required = false) String marque,
-                                       @RequestParam(required = false) String modele,
-                                       @RequestParam(required = false) String typeMine) {
-        byte[] xlsx = exports.prix(new FiltresPrix(designation, type, marque, modele, typeMine),
-                utilisateurCourant.obtenir());
+    public ResponseEntity<byte[]> prix(FiltresPrix filtres) {
+        byte[] xlsx = exports.prix(filtres, utilisateurCourant.obtenir());
         return fichier(xlsx, "analyse-prix-" + LocalDateTime.now().format(SUFFIXE) + ".xlsx", XLSX);
     }
 

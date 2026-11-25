@@ -8,7 +8,6 @@ const menu: [string, IconName, string, keyof typeof ROLES_PAR_ECRAN][] = [
   ["Importer des rapports", "upload", ROUTES.imports, "imports"],
   ["Dossiers", "folder", ROUTES.dossiers, "dossiers"],
   ["Analyse des prix", "chart", ROUTES.analysePrix, "analysePrix"],
-  ["Recherche de pièces", "search", ROUTES.recherchePieces, "recherchePieces"],
   ["Valeur vénale / achat", "car", ROUTES.valeursVenales, "valeursVenales"],
   ["Génération des rapports", "file", ROUTES.generation, "generation"],
   ["Utilisateurs", "users", ROUTES.utilisateurs, "utilisateurs"],

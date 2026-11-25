@@ -1,9 +1,7 @@
 package ma.ltexpertise.recherche;
 
 import ma.ltexpertise.commun.Tableau;
-import ma.ltexpertise.recherche.ServiceRecherches.FiltresPieces;
 import ma.ltexpertise.recherche.ServiceRecherches.FiltresValeurs;
-import ma.ltexpertise.recherche.ServiceRecherches.ResultatPieces;
 import ma.ltexpertise.recherche.ServiceRecherches.ResultatValeurs;
 import ma.ltexpertise.recherche.ServiceRecherches.Suggestions;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -18,7 +16,7 @@ import java.time.LocalDate;
 import java.util.Map;
 
 /**
- * Recherche des pièces et des valeurs d'achat / vénales, ouvertes à tous les rôles. Résultats paginés : {@code page},
+ * Recherche des valeurs d'achat / vénales et suggestions des filtres du véhicule, ouvertes à tous les rôles. Résultats paginés : {@code page},
  * {@code taille}, {@code tri}, filtres de colonne {@code f_<cle>} (voir {@link Tableau}).
  */
 @RestController
@@ -32,24 +30,14 @@ public class RechercheController {
         this.service = service;
     }
 
-    @GetMapping("/suggestions")
-    public Suggestions suggestions() {
-        return service.suggestions();
-    }
-
     /**
-     * @param zone   zone de choc de la ligne, de 1 à 8
-     * @param annee  année de mise en circulation (MEC)
-     * @param chassis tout ou partie du numéro de châssis (n° de série)
+     * @param marque marque saisie : limite les modèles et types mine proposés
+     * @param modele modèle choisi : limite les types mine proposés
      */
-    @GetMapping("/pieces")
-    public ResultatPieces pieces(@RequestParam(required = false) String piece, @RequestParam(required = false) String type,
-                                 @RequestParam(required = false) Integer zone, @RequestParam(required = false) String marque,
-                                 @RequestParam(required = false) String modele, @RequestParam(required = false) String typeMine,
-                                 @RequestParam(required = false) Integer annee, @RequestParam(required = false) String chassis,
-                                 @RequestParam Map<String, String> parametres) {
-        return service.pieces(new FiltresPieces(piece, type, zone, marque, modele, typeMine, annee, chassis),
-                Tableau.depuis(parametres));
+    @GetMapping("/suggestions")
+    public Suggestions suggestions(@RequestParam(required = false) String marque,
+                                   @RequestParam(required = false) String modele) {
+        return service.suggestions(marque, modele);
     }
 
     /**

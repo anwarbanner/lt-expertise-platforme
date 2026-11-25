@@ -1,15 +1,15 @@
 import { useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
-import { cles, rechercherValeurs } from "@/api/dossiers";
+import { cles, rechercherValeurs, suggestionsVehicule } from "@/api/dossiers";
 import { messageErreur } from "@/api/client";
 import { ROUTES } from "@/app/routes";
 import { Kpi } from "@/components/ui/Kpi";
 import { PageHead } from "@/components/ui/PageHead";
 import { ETAT_INITIAL, parametresTableau, TableauInteractif, type Colonne } from "@/components/ui/TableauInteractif";
-import type { FiltresValeurs, LigneValeur } from "@/domain/dossiers";
+import { VIDE, type FiltresValeurs, type LigneValeur } from "@/domain/dossiers";
 import { date, montant, montantArrondi, nombre } from "@/domain/format";
-import { age, BarreFiltres, ChampsVehicule, ChampTexte, useDiffere } from "./ChampsFiltre";
+import { age, BarreFiltres, ChampListe, ChampTexte, useDiffere } from "./ChampsFiltre";
 
 const VIDES = {
   marque: "", modele: "", typeMine: "", mecDu: "", mecAu: "", ageMinAns: "", ageMinMois: "", ageMaxAns: "", ageMaxMois: "",
@@ -32,7 +32,8 @@ function versFiltres(s: Saisie): FiltresValeurs {
 }
 
 /**
- * Recherche des valeurs d'achat (valeur à neuf) et vénales lues dans le commentaire de l'expert, par véhicule, date
+ * Recherche des valeurs d'achat (valeur à neuf) et vénales lues dans le commentaire de l'expert, par véhicule (marque
+ * saisie en partie ; modèle et type mine choisis dans les valeurs connues, le modèle pouvant être « non renseigné »), date
  * de mise en circulation (DMEC) et âge au sinistre (de la DMEC à la date du sinistre).
  */
 export default function ValeursVenalesPage() {
@@ -40,7 +41,13 @@ export default function ValeursVenalesPage() {
   const [saisie, setSaisie] = useState(VIDES);
   const filtres = useDiffere(versFiltres(saisie));
   const [tableau, setTableau] = useState(ETAT_INITIAL);
-  const changer = (champ: keyof Saisie, valeur: string) => { setSaisie((f) => ({ ...f, [champ]: valeur })); setTableau((t) => ({ ...t, page: 0 })); };
+  const changer = (champ: keyof Saisie, valeur: string, autres: Partial<Saisie> = {}) => {
+    setSaisie((f) => ({ ...f, [champ]: valeur, ...autres }));
+    setTableau((t) => ({ ...t, page: 0 }));
+  };
+  // Modèles connus pour la marque saisie ; types mine du modèle choisi, ou tous sans modèle
+  const vehicule = { marque: filtres.marque || undefined, modele: filtres.modele && filtres.modele !== VIDE ? filtres.modele : undefined };
+  const suggestions = useQuery({ queryKey: cles.suggestions(vehicule), queryFn: () => suggestionsVehicule(vehicule), staleTime: 5 * 60_000, placeholderData: keepPreviousData }).data;
   const parametres = parametresTableau(tableau);
   const resultat = useQuery({ queryKey: cles.valeurs({ ...filtres, ...parametres }), queryFn: () => rechercherValeurs(filtres, parametres), placeholderData: keepPreviousData });
   const r = resultat.data;
@@ -60,7 +67,9 @@ export default function ValeursVenalesPage() {
   return <main className="main pricing-page">
     <PageHead title="Valeur vénale / achat" subtitle="Valeurs d’achat et vénales relevées dans le commentaire de l’expert" />
     <BarreFiltres reinitialiser={() => { setSaisie(VIDES); setTableau(ETAT_INITIAL); }}>
-      <ChampsVehicule marque={saisie.marque} modele={saisie.modele} typeMine={saisie.typeMine} changer={changer} />
+      <ChampTexte libelle="Marque" valeur={saisie.marque} changer={(v) => changer("marque", v, { modele: "", typeMine: "" })} suggestions={suggestions?.marques} placeholder="Toutes" />
+      <ChampListe libelle="Modèle" valeur={saisie.modele} changer={(v) => changer("modele", v, { typeMine: "" })} options={suggestions?.modeles} />
+      <ChampListe libelle="Type mine" valeur={saisie.typeMine} changer={(v) => changer("typeMine", v)} options={suggestions?.typesMine} />
       <ChampTexte libelle="DMEC du" type="date" valeur={saisie.mecDu} changer={(v) => changer("mecDu", v)} />
       <ChampTexte libelle="DMEC au" type="date" valeur={saisie.mecAu} changer={(v) => changer("mecAu", v)} />
       <fieldset className="champ-double"><legend>Âge minimum (ans / mois)</legend>

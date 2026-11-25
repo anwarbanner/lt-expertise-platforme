@@ -34,11 +34,17 @@ public final class DossierDtos {
     private DossierDtos() {
     }
 
-    /** Ligne de la liste des dossiers. */
+    /**
+     * Ligne de la liste des dossiers.
+     *
+     * @param anomalies         contrôles bloquants en échec (incohérences et champs essentiels manquants)
+     * @param libellesAnomalies leurs libellés, dans l'ordre des contrôles
+     */
     public record DossierResume(Long id, String numeroRapport, StatutDossier statut, NatureRapport natureRapport,
                                 TypeProcedure typeProcedure, LocalDate dateSinistre, LocalDate dateRapport,
                                 String assure, String immatriculation, String compagnie, List<Integer> zonesChoc,
-                                BigDecimal montantIndemnisation, OffsetDateTime creeLe, long anomalies) {
+                                BigDecimal montantIndemnisation, OffsetDateTime creeLe, long anomalies,
+                                List<String> libellesAnomalies) {
     }
 
     public record PartieDto(@Size(max = 150) String nomPrenom, @Size(max = 100) String vehicule,

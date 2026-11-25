@@ -11,7 +11,6 @@ import DossiersPage from "@/features/dossiers/DossiersPage";
 import VerificationPage from "@/features/dossiers/VerificationPage";
 import DossierDetailPage from "@/features/dossiers/DossierDetailPage";
 import AnalysePrixPage from "@/features/analyse-prix/AnalysePrixPage";
-import RecherchePiecesPage from "@/features/recherche/RecherchePiecesPage";
 import ValeursVenalesPage from "@/features/recherche/ValeursVenalesPage";
 import GenerationPage from "@/features/generation/GenerationPage";
 import UtilisateursPage from "@/features/utilisateurs/UtilisateursPage";
@@ -29,7 +28,7 @@ export function RoutesApplication() {
       <Route path="/dossiers/:numero" element={<DossierDetailPage />} />
       <Route path="/dossiers/:numero/verification" element={<RouteProtegee roles={ROLES_PAR_ECRAN.verification}><VerificationPage /></RouteProtegee>} />
       <Route path={ROUTES.analysePrix} element={<AnalysePrixPage />} />
-      <Route path={ROUTES.recherchePieces} element={<RecherchePiecesPage />} />
+      <Route path={ROUTES.recherchePieces} element={<Navigate to={ROUTES.analysePrix} replace />} />
       <Route path={ROUTES.valeursVenales} element={<ValeursVenalesPage />} />
       <Route path={ROUTES.generation} element={<GenerationPage />} />
       <Route path={ROUTES.utilisateurs} element={<RouteProtegee roles={ROLES_PAR_ECRAN.utilisateurs}><UtilisateursPage /></RouteProtegee>} />

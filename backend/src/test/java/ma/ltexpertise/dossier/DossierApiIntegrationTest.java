@@ -154,6 +154,17 @@ class DossierApiIntegrationTest {
 
         JsonNode dossier = lire(get("/api/dossiers/{numero}", numero));
         assertThat(dossier.get("statut").asText()).isEqualTo("A_VERIFIER");
+        // La liste des dossiers donne les libellés des anomalies (contrôles bloquants en échec) de la fiche
+        List<String> attendus = new java.util.ArrayList<>();
+        dossier.get("controles").forEach(c -> {
+            if (!c.get("conforme").asBoolean() && c.get("bloquant").asBoolean()) {
+                attendus.add(c.get("libelle").asText());
+            }
+        });
+        assertThat(attendus).isNotEmpty();
+        JsonNode resume = lire(get("/api/dossiers").param("q", numero)).get("content").get(0);
+        assertThat(resume.get("anomalies").asInt()).isEqualTo(attendus.size());
+        assertThat(resume.get("libellesAnomalies")).extracting(JsonNode::asText).containsExactlyElementsOf(attendus);
         JsonNode ligne = dossier.get("lignesDetail").get(1);
         assertThat(ligne.get("designation").asText()).isEqualTo("PP ET ING");
         assertThat(ligne.get("prixCoherent").asBoolean()).isFalse();

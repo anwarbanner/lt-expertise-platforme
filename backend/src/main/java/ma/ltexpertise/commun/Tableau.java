@@ -89,7 +89,8 @@ public record Tableau(int page, int taille, String tri, boolean descendant, Map<
             String nom = "colonne" + i++;
             where.append(" and ").append(normaliser("cast(" + colonne.texte() + " as text)"))
                     .append(" like '%' || ").append(normaliser(":" + nom)).append(" || '%'");
-            p.addValue(nom, filtre.getValue());
+            // « % » et « _ » saisis sont cherchés tels quels (RechercheTexte)
+            p.addValue(nom, RechercheTexte.echapper(filtre.getValue()));
         }
     }
 

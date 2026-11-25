@@ -12,7 +12,7 @@ export function dossierResume(numeroRapport: string, statut: StatutDossier, autr
   return {
     id: Number(numeroRapport.replace(/\D/g, "")), numeroRapport, statut, natureRapport: "DEFINITIF", typeProcedure: null,
     dateSinistre: "2026-10-01", dateRapport: "2026-10-10", assure: "Hassan Mansouri", immatriculation: "32148-B-6",
-    compagnie: "Wafa Assurance", zonesChoc: [1], montantIndemnisation: 2400, creeLe: "2026-10-20T10:00:00Z", anomalies: 0, ...autres,
+    compagnie: "Wafa Assurance", zonesChoc: [1], montantIndemnisation: 2400, creeLe: "2026-10-20T10:00:00Z", anomalies: 0, libellesAnomalies: [], ...autres,
   };
 }
 
@@ -46,7 +46,7 @@ export const TABLEAU_VIDE: TableauDeBord = {
 };
 
 export const PRIX_VIDE: AnalysePrix = {
-  nombre: 0, minimum: null, moyenne: null, maximum: null, moyenneParType: {}, lignes: [], page: 0, taille: 25,
+  nombre: 0, dossiers: 0, minimum: null, moyenne: null, maximum: null, parType: [], lignes: [], page: 0, taille: 25,
 };
 
 export function compte(identifiant: string, autres: Partial<CompteUtilisateur> = {}): CompteUtilisateur {
@@ -64,7 +64,7 @@ export function compte(identifiant: string, autres: Partial<CompteUtilisateur> =
  */
 export function simulerApi(surcharges: (serveur: MockAdapter) => void = () => {}) {
   const serveur = new MockAdapter(api);
-  const dossiers = [dossierResume("268202-0313", "A_VERIFIER", { anomalies: 1 }), dossierResume("268202-0284", "VALIDE")];
+  const dossiers = [dossierResume("268202-0313", "A_VERIFIER", { anomalies: 1, libellesAnomalies: ["Total général TTC = total MO + total fournitures"] }), dossierResume("268202-0284", "VALIDE")];
   serveur.onGet("/imports").reply(200, page([]));
   serveur.onGet("/dossiers/compteurs").reply(200, { A_VERIFIER: 1, VALIDE: 1 });
   serveur.onGet("/dossiers/compagnies").reply(200, ["Wafa Assurance"]);
@@ -72,7 +72,6 @@ export function simulerApi(surcharges: (serveur: MockAdapter) => void = () => {}
   serveur.onGet("/statistiques/tableau-de-bord").reply(200, TABLEAU_VIDE);
   serveur.onGet("/statistiques/prix").reply(200, PRIX_VIDE);
   serveur.onGet("/recherche/suggestions").reply(200, { marques: [], modeles: [], typesMine: [] });
-  serveur.onGet("/recherche/pieces").reply(200, { nombre: 0, lignes: [], page: 0, taille: 25 });
   serveur.onGet("/recherche/valeurs").reply(200, { nombre: 0, moyenneAchat: null, moyenneVenale: null, lignes: [], page: 0, taille: 25 });
   serveur.onGet("/utilisateurs").reply(200, []);
   serveur.onGet("/journal-audit").reply(200, page([]));

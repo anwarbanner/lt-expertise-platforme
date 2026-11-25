@@ -30,6 +30,8 @@ export interface DossierResume {
   creeLe: string;
   /** Contrôles bloquants en échec. */
   anomalies: number;
+  /** Libellés des anomalies (contrôles bloquants en échec), dans l'ordre des contrôles. */
+  libellesAnomalies: string[];
 }
 
 export interface Partie {
@@ -219,26 +221,44 @@ export interface TableauDeBord {
   derniersDossiers: { numeroRapport: string; importeLe: string; compagnie: string | null; montantIndemnisation: number | null; statut: StatutDossier }[];
 }
 
-export interface FiltresPrix { designation?: string; type?: string; marque?: string; modele?: string; typeMine?: string }
+/** Valeur d'un filtre qui demande les lignes où le champ n'est pas renseigné (RechercheTexte.VIDE côté serveur). */
+export const VIDE = "__VIDE__";
+
+/** Type d'une ligne de prix ; VIDE quand le type (O, A, R) n'est pas imprimé. */
+export type TypePieceOuVide = TypePiece | "VIDE";
+
+/**
+ * Filtres de l'analyse des prix. type : ORIGINE, ADAPTABLE, REEMPLOI ou VIDE ; zones : codes séparés par des virgules
+ * (« 1,4 ») ; les autres champs valent {@link VIDE} pour « non renseigné ».
+ */
+export interface FiltresPrix {
+  designation?: string; type?: string; zones?: string; marque?: string; modele?: string; typeMine?: string; annee?: string; chassis?: string;
+}
 
 export interface LignePrix {
   numeroRapport: string;
   designation: string;
-  typePiece: TypePiece;
+  /** null : type non renseigné. */
+  typePiece: TypePiece | null;
   marque: string | null;
   modele: string | null;
   typeMine: string | null;
-  prixUnitaire: number;
+  prixUnitaire: number | null;
   /** Date du prix : celle du rapport, à défaut celle de l'import. */
   date: string | null;
 }
 
 export interface AnalysePrix {
+  /** Lignes de pièces filtrées. */
   nombre: number;
+  /** Dossiers distincts auxquels appartiennent ces lignes. */
+  dossiers: number;
+  /** Prix unitaires positifs seulement. */
   minimum: number | null;
   moyenne: number | null;
   maximum: number | null;
-  moyenneParType: Partial<Record<TypePiece, number>>;
+  /** Lignes et prix moyen par type, dans l'ordre Origine, Adaptable, Réemploi, Vide. */
+  parType: { type: TypePieceOuVide; nombre: number; moyenne: number | null }[];
   /** Page {@link page} (à partir de 0) de {@link taille} lignes sur les {@link nombre} filtrées. */
   lignes: LignePrix[];
   page: number;
@@ -247,24 +267,6 @@ export interface AnalysePrix {
 
 /** Valeurs déjà rencontrées, proposées dans les filtres du véhicule. */
 export interface SuggestionsVehicule { marques: string[]; modeles: string[]; typesMine: string[] }
-
-export interface FiltresPieces { piece?: string; type?: string; zone?: string; marque?: string; modele?: string; typeMine?: string; annee?: string; chassis?: string }
-
-export interface LignePiece {
-  numeroRapport: string;
-  designation: string;
-  typePiece: TypePiece;
-  zoneChoc: number | null;
-  marque: string | null;
-  modele: string | null;
-  typeMine: string | null;
-  dateMiseCirculation: string | null;
-  numeroChassis: string | null;
-  prixUnitaire: number | null;
-  date: string | null;
-}
-
-export interface ResultatPieces { nombre: number; lignes: LignePiece[]; page: number; taille: number }
 
 /** Âges en mois ; valeurs d'achat (valeur à neuf) et vénale lues dans le commentaire de l'expert. */
 export interface FiltresValeurs {
