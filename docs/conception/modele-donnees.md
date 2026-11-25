@@ -241,7 +241,8 @@ P4 page 1 = page 2 : Σ total_fourniture = total_fournitures_ttc ; Σ montant_mo
 - Sauvegarde quotidienne : `pg_dump` + `mc mirror` du bucket vers le disque séparé, conservée 30 jours.
 - Verrou par objet : *legal hold* (sans durée, levable seulement par un administrateur MinIO) plutôt qu'une rétention à durée fixe.
 - ⚠️ Image Docker : le dépôt Docker Hub `minio/minio` a été supprimé par MinIO (édition communautaire en source seule).
-  L'image utilisée est une copie en cache retaguée `lt-expertise/minio:RELEASE.2025-09-07T16-13-09Z`.
+  L'image utilisée est `pgsty/silo:latest` (dérivé de MinIO, compatible S3 et `mc`), qui remplace depuis le 25/11/2026
+  l'ancienne copie en cache retaguée `lt-expertise/minio:RELEASE.2025-09-07T16-13-09Z`.
   Source durable à décider avant la mise en service (voir question 10).
 
 Implémenté (22/10/2026) : `ServiceImport`, `StockageMinio`, `POST /api/imports`, `GET /api/imports[?refuses=true]`,

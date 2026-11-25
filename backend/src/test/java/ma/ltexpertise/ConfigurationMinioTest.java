@@ -6,12 +6,12 @@ import org.springframework.test.context.DynamicPropertyRegistrar;
 import org.testcontainers.containers.MinIOContainer;
 import org.testcontainers.utility.DockerImageName;
 
-/** MinIO jetable, même image locale que docker-compose.dev.yml (plus publiée sur Docker Hub). */
+/** MinIO jetable, même image que docker-compose.yml (pgsty/silo, dérivé de MinIO). */
 @TestConfiguration(proxyBeanMethods = false)
 public class ConfigurationMinioTest {
 
     public static final DockerImageName IMAGE_MINIO = DockerImageName
-            .parse("lt-expertise/minio:RELEASE.2025-09-07T16-13-09Z")
+            .parse("pgsty/silo:latest")
             .asCompatibleSubstituteFor("minio/minio");
 
     @Bean
