@@ -16,7 +16,7 @@ import { DetailPieces } from "./components/DetailPieces";
 import { PdfViewer } from "./components/PdfViewer";
 import { ValeursCommentaire } from "./components/ValeursCommentaire";
 import { VehicleDiagram } from "./components/VehicleDiagram";
-import { CONTRATS, ENERGIES, EVENEMENTS, NATURES, OUI_NON, PROCEDURES } from "./libelles";
+import { BASES_VETUSTE, CONTRATS, ENERGIES, EVENEMENTS, NATURES, OUI_NON, PROCEDURES, REFORMES } from "./libelles";
 
 const ONGLETS = ["Sinistre", "Parties", "Véhicule", "Évaluation des dommages", "Détail des pièces", "Conclusion"] as const;
 const PARTIE_VIDE: Partie = { nomPrenom: null, vehicule: null, immatriculation: null, compagnie: null, numeroPolice: null, intermediaire: null };
@@ -38,7 +38,8 @@ function brouillonDe(d: DossierDetail): DossierModification {
     dateRapport: d.dateRapport, lieuRapport: d.lieuRapport, natureContrat: d.natureContrat, natureEvenement: d.natureEvenement,
     zonesChoc: [...d.zonesChoc], reparateur: d.reparateur, accordReparateur: d.accordReparateur,
     assure: d.assure ?? PARTIE_VIDE, adversaire: d.adversaire ?? PARTIE_VIDE, vehicule: d.vehicule ?? VEHICULE_VIDE,
-    vetusteTtc: d.vetusteTtc, depannage: d.depannage, valeurNeuf: d.valeurNeuf, valeurAssuree: d.valeurAssuree,
+    vetusteTtc: d.vetusteTtc, vetusteHt: d.vetusteHt, depannage: d.depannage,
+    typeReforme: d.typeReforme, epavisteNom: d.epavisteNom, epavisteVille: d.epavisteVille, valeurNeuf: d.valeurNeuf, valeurAssuree: d.valeurAssuree,
     valeurVenale: d.valeurVenale, valeurEpave: d.valeurEpave, tvaRecuperable: d.tvaRecuperable,
     montantIndemnisation: d.montantIndemnisation, montantLettres: d.montantLettres, commentaire: d.commentaire,
     prixLignes: d.lignesDetail.filter((l) => !l.prixCoherent).map((l) => ({ ordre: l.ordre, prixUnitaire: l.prixUnitaire })),
@@ -116,6 +117,15 @@ export default function VerificationPage() {
     });
   }
 
+  /** Vétusté TTC ou HT : le montant saisi passe dans l'autre champ, une seule des deux est envoyée. */
+  function changerBaseVetuste(base: string) {
+    setBrouillon((b) => {
+      if (!b) return b;
+      const montant = b.vetusteHt ?? b.vetusteTtc;
+      return base === "HT" ? { ...b, vetusteHt: montant ?? 0, vetusteTtc: null } : { ...b, vetusteTtc: montant, vetusteHt: null };
+    });
+  }
+
   function changerZones(zones: number[]) {
     setBrouillon((b) => b && { ...b, zonesChoc: zones });
   }
@@ -138,6 +148,9 @@ export default function VerificationPage() {
   const partie = (bloc: "assure" | "adversaire") => <>{texte("Nom complet", `${bloc}.nomPrenom`)}{texte("Véhicule", `${bloc}.vehicule`)}
     {texte("Immatriculation", `${bloc}.immatriculation`)}{texte("Compagnie", `${bloc}.compagnie`)}{texte("N° de police", `${bloc}.numeroPolice`)}{texte("Intermédiaire", `${bloc}.intermediaire`)}</>;
 
+  const vetusteHt = brouillon.vetusteHt !== null;
+  // Réforme et épaviste retenu ne figurent que sur les rapports de réforme (contrainte ck_rapport_reforme)
+  const reforme = d.natureRapport === "REFORME";
   const contenu = [
     <div className="fields-grid" key="sinistre">
       <ChampSaisie label="N° de rapport" value={d.numeroRapport} onChange={() => {}} disabled aide={`Nature : ${NATURES[d.natureRapport]}`} />
@@ -168,9 +181,12 @@ export default function VerificationPage() {
       : <p className="lecture-seule">Lignes lues en page 2 du rapport ; tous les prix unitaires sont cohérents avec les totaux.</p>}
       <DetailPieces lignes={d.lignesDetail} prix={Object.fromEntries(brouillon.prixLignes.map((p) => [p.ordre, p.prixUnitaire]))} changerPrix={changerPrix} /></div>,
     <div className="conclusion" key="conclusion"><div className="fields-grid">
-      {nombreChamp(d.vetusteHt !== null ? "Vétusté TTC (le rapport indique une vétusté HT)" : "Vétusté TTC", "vetusteTtc")}{nombreChamp("Dépannage", "depannage")}
+      <ChampSaisie label="Type de vétusté" value={vetusteHt ? "HT" : "TTC"} options={BASES_VETUSTE} onChange={changerBaseVetuste}
+        aide={vetusteHt ? "Indemnisation = total général HT − vétusté HT" : "Indemnisation = total général TTC − vétusté TTC"} />
+      {nombreChamp(vetusteHt ? "Vétusté HT" : "Vétusté TTC", vetusteHt ? "vetusteHt" : "vetusteTtc")}{nombreChamp("Dépannage", "depannage")}
       {liste("TVA récupérable", "tvaRecuperable", OUI_NON, "booleen")}{nombreChamp("Valeur à neuf", "valeurNeuf")}{nombreChamp("Valeur assurée", "valeurAssuree")}
       {nombreChamp("Valeur vénale", "valeurVenale")}{nombreChamp("Valeur épave", "valeurEpave")}{nombreChamp("Montant de l’indemnisation", "montantIndemnisation")}
+      {reforme && <>{liste("Épaviste retenu : réforme", "typeReforme", REFORMES)}{texte("Épaviste retenu : nom", "epavisteNom")}{texte("Épaviste retenu : ville", "epavisteVille")}</>}
       {texte("Montant en lettres", "montantLettres", "textarea")}{texte("Commentaire de l’expert", "commentaire", "textarea")}
     </div>{d.commentaire && <><h3 className="sous-titre">Valeurs clés du commentaire</h3><ValeursCommentaire valeurs={d.valeursCommentaire} /></>}</div>,
   ];

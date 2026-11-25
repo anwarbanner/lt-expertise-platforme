@@ -137,6 +137,83 @@ class DossierApiIntegrationTest {
         assertThat(modifie.get("version").asInt()).isGreaterThan(dossier.get("version").asInt());
     }
 
+    /** Vétusté HT ou TTC : elle fixe le calcul de l'indemnisation ; jamais les deux à la fois. */
+    @Test
+    @WithMockUser(username = "gestionnaire", roles = "GESTIONNAIRE")
+    void vetusteHt_changeLeCalculDeLIndemnisation() throws Exception {
+        String numero = importer(RapportPdfFactice.numero(nouveauNumero()));
+        JsonNode dossier = lire(get("/api/dossiers/{numero}", numero));
+        assertThat(dossier.get("vetusteTtc").decimalValue()).isEqualByComparingTo("0.00");
+        assertThat(dossier.get("vetusteHt").isNull()).isTrue();
+
+        ObjectNode lesDeux = modification(dossier);
+        lesDeux.put("vetusteHt", 0);
+        mvc.perform(put("/api/dossiers/{numero}", numero).contentType(MediaType.APPLICATION_JSON)
+                        .content(lesDeux.toString()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("soit TTC, soit HT")));
+
+        // Total général HT 1 933,33 − vétusté HT 0 ≠ 2 320 imprimé : le contrôle d'indemnisation échoue
+        ObjectNode ht = modification(dossier);
+        ht.putNull("vetusteTtc");
+        ht.put("vetusteHt", 0);
+        JsonNode modifie = lire(put("/api/dossiers/{numero}", numero).contentType(MediaType.APPLICATION_JSON)
+                .content(ht.toString()));
+        assertThat(modifie.get("vetusteHt").decimalValue()).isEqualByComparingTo("0.00");
+        assertThat(modifie.get("vetusteTtc").isNull()).isTrue();
+        assertThat(modifie.get("statut").asText()).isEqualTo("A_VERIFIER");
+        JsonNode indemnisation = null;
+        for (JsonNode c : modifie.get("controles")) {
+            if (c.get("code").asText().equals("INDEMNISATION")) {
+                indemnisation = c;
+            }
+        }
+        assertThat(indemnisation).isNotNull();
+        assertThat(indemnisation.get("libelle").asText()).isEqualTo("Total général HT − vétusté HT = indemnisation");
+        assertThat(indemnisation.get("attendu").decimalValue()).isEqualByComparingTo("1933.33");
+
+        // Retour à la vétusté TTC : le dossier redevient prêt à valider
+        ObjectNode ttc = modification(modifie);
+        ttc.putNull("vetusteHt");
+        ttc.put("vetusteTtc", 0);
+        mvc.perform(put("/api/dossiers/{numero}", numero).contentType(MediaType.APPLICATION_JSON)
+                        .content(ttc.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.statut").value("PRET_A_VALIDER"));
+        mvc.perform(get("/api/dossiers/{numero}/historique", numero))
+                .andExpect(jsonPath("$[?(@.action == 'MODIFICATION')].champ", hasItem("vetusteHt")));
+    }
+
+    /** Épaviste retenu (réforme économique ou technique) : modifiable sur un rapport de réforme seulement. */
+    @Test
+    @WithMockUser(username = "gestionnaire", roles = "GESTIONNAIRE")
+    void reformeEtEpavisteRetenu_seSaisissentSurUnRapportDeReforme() throws Exception {
+        String classique = importer(RapportPdfFactice.numero(nouveauNumero()));
+        ObjectNode refusee = modification(lire(get("/api/dossiers/{numero}", classique)));
+        refusee.put("typeReforme", "TECHNIQUE");
+        mvc.perform(put("/api/dossiers/{numero}", classique).contentType(MediaType.APPLICATION_JSON)
+                        .content(refusee.toString()))
+                .andExpect(status().isConflict());
+
+        String reforme = importer(RapportPdfFactice.numero(nouveauNumero()).titre("RAPPORT D'EXPERTISE REFORME"));
+        JsonNode dossier = lire(get("/api/dossiers/{numero}", reforme));
+        assertThat(dossier.get("natureRapport").asText()).isEqualTo("REFORME");
+        assertThat(dossier.get("typeReforme").isNull()).isTrue();
+
+        ObjectNode modification = modification(dossier);
+        modification.put("typeReforme", "ECONOMIQUE");
+        modification.put("epavisteNom", "EPAVISTE TEST");
+        modification.put("epavisteVille", "CASABLANCA");
+        mvc.perform(put("/api/dossiers/{numero}", reforme).contentType(MediaType.APPLICATION_JSON)
+                        .content(modification.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.typeReforme").value("ECONOMIQUE"))
+                .andExpect(jsonPath("$.epavisteNom").value("EPAVISTE TEST"))
+                .andExpect(jsonPath("$.epavisteVille").value("CASABLANCA"));
+        mvc.perform(get("/api/dossiers/{numero}/historique", reforme))
+                .andExpect(jsonPath("$[?(@.champ == 'typeReforme')].nouvelleValeur", hasItem("ECONOMIQUE")));
+    }
+
     @Test
     @WithMockUser(username = "gestionnaire", roles = "GESTIONNAIRE")
     void p3_unDossierEnAnomalieNeSeValidePas() throws Exception {
@@ -486,7 +563,8 @@ class DossierApiIntegrationTest {
         for (String champ : new String[]{"version", "typeProcedure", "cabinet", "expert", "compagnie", "refSinistre",
                 "dateSinistre", "dateMission", "dateExpertise", "dateAvantReparation", "dateEnCoursTravaux",
                 "dateApresTravaux", "dateRapport", "lieuRapport", "natureContrat", "natureEvenement", "zonesChoc",
-                "reparateur", "accordReparateur", "assure", "adversaire", "vehicule", "vetusteTtc", "depannage",
+                "reparateur", "accordReparateur", "assure", "adversaire", "vehicule", "vetusteTtc", "vetusteHt",
+                "depannage", "typeReforme", "epavisteNom", "epavisteVille",
                 "valeurNeuf", "valeurAssuree", "valeurVenale", "valeurEpave", "tvaRecuperable", "montantIndemnisation",
                 "montantLettres", "commentaire"}) {
             m.set(champ, d.get(champ));

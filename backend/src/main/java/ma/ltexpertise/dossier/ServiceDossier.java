@@ -22,6 +22,7 @@ import ma.ltexpertise.dossier.DossierDtos.ResultatValidationGroupee;
 import ma.ltexpertise.dossier.DossierDtos.ValeurCommentaireDto;
 import ma.ltexpertise.dossier.DossierDtos.ValidationGroupee;
 import ma.ltexpertise.dossier.DossierDtos.VehiculeDto;
+import ma.ltexpertise.dossier.referentiel.NatureRapport;
 import ma.ltexpertise.dossier.referentiel.StatutDossier;
 import ma.ltexpertise.dossier.referentiel.TypeControle;
 import ma.ltexpertise.dossier.referentiel.TypePartie;
@@ -142,7 +143,19 @@ public class ServiceDossier {
                 z -> r.setZonesChoc(z.stream().map(ZoneChoc::depuisCode).toList()));
         c.champ("reparateur", r.getReparateur(), vide(m.reparateur()), r::setReparateur);
         c.champ("accordReparateur", r.getAccordReparateur(), m.accordReparateur(), r::setAccordReparateur);
+        if (m.vetusteTtc() != null && m.vetusteHt() != null) {
+            throw new ValidationRefuseeException("La vétusté est soit TTC, soit HT : une seule des deux est saisie.");
+        }
+        if (r.getNatureRapport() != NatureRapport.REFORME
+                && (m.typeReforme() != null || vide(m.epavisteNom()) != null || vide(m.epavisteVille()) != null)) {
+            throw new ValidationRefuseeException(
+                    "La réforme et l'épaviste retenu ne se saisissent que sur un rapport de réforme.");
+        }
         c.champ("vetusteTtc", r.getVetusteTtc(), m.vetusteTtc(), r::setVetusteTtc);
+        c.champ("vetusteHt", r.getVetusteHt(), m.vetusteHt(), r::setVetusteHt);
+        c.champ("typeReforme", r.getTypeReforme(), m.typeReforme(), r::setTypeReforme);
+        c.champ("epavisteNom", r.getEpavisteNom(), vide(m.epavisteNom()), r::setEpavisteNom);
+        c.champ("epavisteVille", r.getEpavisteVille(), vide(m.epavisteVille()), r::setEpavisteVille);
         c.champ("depannage", r.getDepannage(), m.depannage(), r::setDepannage);
         c.champ("valeurNeuf", r.getValeurNeuf(), m.valeurNeuf(), r::setValeurNeuf);
         c.champ("valeurAssuree", r.getValeurAssuree(), m.valeurAssuree(), r::setValeurAssuree);

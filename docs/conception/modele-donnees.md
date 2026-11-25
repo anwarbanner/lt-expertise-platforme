@@ -19,6 +19,7 @@ Source UML : `modele-donnees.puml` (PlantUML).
 | V7 | Table `rapport_zone_choc` (la colonne `rapport_expertise.zone_choc` disparaît) ; colonne `resultat_controle.bloquant` ; clés `PIECES_RECUPERATION_FERRAILLE`, `PEINTURE_REGLES_ART` | Plusieurs zones de choc par rapport ; champ absent du PDF non bloquant (sauf montant, procédure, TVA) ; valeurs du commentaire 2026 (F12) |
 | V8 | Migration Java `db.migration.V8__valeurs_commentaire_existantes` | Valeurs du commentaire calculées pour les dossiers déjà importés |
 | V9 | `PAGE2_LIGNES_PRIX` de nouveau bloquant | Les prix faux se corrigent à la main (PUT `prixLignes`) avant validation |
+| V13 | `ck_rapport_vetuste_ht_ou_ttc` | Vétusté TTC **ou** HT, jamais les deux : elle fixe le calcul de l'indemnisation (25/11/2026) |
 
 Statut après import : À vérifier si un contrôle **bloquant** échoue, sinon À compléter s'il manque une donnée
 essentielle (montant d'indemnisation, procédure, TVA récupérable), sinon Prêt à valider. Les autres champs absents

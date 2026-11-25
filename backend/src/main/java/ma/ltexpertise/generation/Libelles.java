@@ -5,6 +5,7 @@ import ma.ltexpertise.dossier.referentiel.CleCommentaire;
 import ma.ltexpertise.dossier.referentiel.PosteMainOeuvre;
 import ma.ltexpertise.dossier.referentiel.StatutDossier;
 import ma.ltexpertise.dossier.referentiel.TypeProcedure;
+import ma.ltexpertise.dossier.referentiel.TypeReforme;
 import ma.ltexpertise.dossier.referentiel.ZoneChoc;
 
 import java.util.List;
@@ -42,6 +43,17 @@ final class Libelles {
             case PLUS_DE_20000 -> "Plus de 20 000";
             case PRISE_EN_CHARGE -> "Prise en charge";
             case WAFA_24 -> "Wafa 24 heures";
+        };
+    }
+
+    /** Réforme cochée dans « Epaviste retenu Réforme Economique( ) Technique( ) ». */
+    static String reforme(TypeReforme t) {
+        if (t == null) {
+            return null;
+        }
+        return switch (t) {
+            case ECONOMIQUE -> "Réforme économique";
+            case TECHNIQUE -> "Réforme technique";
         };
     }
 

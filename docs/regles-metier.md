@@ -40,7 +40,7 @@ ajout seul (P7). Un import erroné s'**annule** :
 | Pour chacun des 7 postes de main d'œuvre : heures × taux = HT, HT + TVA = TTC | 14 |
 | Somme des postes = total main d'œuvre ; somme des fournitures = total fournitures (HT, TVA, TTC) | 6 |
 | Main d'œuvre + fournitures = total général (HT, TVA, TTC) | 3 |
-| Indemnisation : total général TTC − vétusté ; **HT** si la TVA est récupérable (P5) ; réforme : valeur vénale − valeur épave | 1 |
+| Indemnisation : la vétusté imprimée fixe la méthode — « Vétusté TTC » : total général TTC − vétusté TTC ; « Vétusté HT » : total général **HT** − vétusté HT (sans vétusté lue : HT si la TVA est récupérable, P5) ; réforme : valeur vénale − valeur épave | 1 |
 | Montant en lettres = montant en chiffres | 1 |
 | Page 2 = page 1 : main d'œuvre TTC ; fournitures TTC − vétusté | 2 |
 | Chaque ligne de la page 2 : quantité × prix × (1 + TVA) × (1 − vétusté) = total | 1 |

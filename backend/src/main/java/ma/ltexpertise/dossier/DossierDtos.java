@@ -116,6 +116,8 @@ public final class DossierDtos {
 
     /**
      * Champs modifiables à l'écran de vérification (F5). Les tableaux de montants restent ceux du rapport.
+     * La vétusté est soit TTC soit HT ({@code vetusteTtc} ou {@code vetusteHt}, jamais les deux) : elle fixe le
+     * calcul de l'indemnisation. Réforme et épaviste retenu ne concernent que les rapports de réforme.
      * {@code version} est celle lue avec le dossier : une modification concurrente est refusée.
      */
     public record DossierModification(
@@ -130,7 +132,9 @@ public final class DossierDtos {
             List<@Min(1) @Max(8) Integer> zonesChoc,
             @Size(max = 150) String reparateur, Boolean accordReparateur,
             @Valid PartieDto assure, @Valid PartieDto adversaire, @Valid VehiculeDto vehicule,
-            @DecimalMin("0") BigDecimal vetusteTtc, @DecimalMin("0") BigDecimal depannage,
+            @DecimalMin("0") BigDecimal vetusteTtc, @DecimalMin("0") BigDecimal vetusteHt,
+            @DecimalMin("0") BigDecimal depannage,
+            TypeReforme typeReforme, @Size(max = 100) String epavisteNom, @Size(max = 60) String epavisteVille,
             @DecimalMin("0") BigDecimal valeurNeuf, @DecimalMin("0") BigDecimal valeurAssuree,
             @DecimalMin("0") BigDecimal valeurVenale, @DecimalMin("0") BigDecimal valeurEpave,
             Boolean tvaRecuperable,

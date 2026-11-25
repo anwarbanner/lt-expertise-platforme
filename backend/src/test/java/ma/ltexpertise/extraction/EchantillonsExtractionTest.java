@@ -3,6 +3,7 @@ package ma.ltexpertise.extraction;
 import ma.ltexpertise.controle.ControleCoherenceService;
 import ma.ltexpertise.dossier.referentiel.CleCommentaire;
 import ma.ltexpertise.dossier.referentiel.NatureRapport;
+import ma.ltexpertise.dossier.referentiel.TypeReforme;
 import ma.ltexpertise.dossier.referentiel.ZoneChoc;
 import ma.ltexpertise.importation.AnalyseurGabarit;
 import org.apache.pdfbox.Loader;
@@ -84,6 +85,34 @@ class EchantillonsExtractionTest {
         assertThat(prixUnitairesFaux).as("rapports aux prix unitaires faux").isEqualTo(2);
         assertThat(parNature.getOrDefault(NatureRapport.REFORME, 0)).isEqualTo(3);
         assertThat(parNature.getOrDefault(NatureRapport.NON_DEFINITIF, 0)).isEqualTo(1);
+    }
+
+    /**
+     * « Vétusté HT » ou « Vétusté TTC » : une seule est lue, et elle fixe le calcul de l'indemnisation
+     * (A_rapport4 : total général HT 118 400 − vétusté HT 2 100 = 116 300).
+     */
+    @Test
+    void laVetusteEstLueHtOuTtc() throws IOException {
+        for (String fichier : List.of("A_rapport4_CLASSIQUE.pdf", "C_rapport4_plus de 20000.pdf", "E_rapport2_WAFA 24_2026.pdf")) {
+            RapportExtrait r = extraire(fichier);
+            assertThat(r.getVetusteHt()).as(fichier).isNotNull();
+            assertThat(r.getVetusteTtc()).as(fichier).isNull();
+            assertThat(ControleCoherenceService.calculSurHt(r)).as(fichier).isTrue();
+        }
+        assertThat(extraire("A_rapport4_CLASSIQUE.pdf").getVetusteHt()).isEqualByComparingTo("2100.00");
+        RapportExtrait ttc = extraire("B_rapport3_pec et plus de que 20000.pdf");
+        assertThat(ttc.getVetusteTtc()).isEqualByComparingTo("12606.37");
+        assertThat(ttc.getVetusteHt()).isNull();
+        assertThat(ControleCoherenceService.calculSurHt(ttc)).isFalse();
+    }
+
+    /** Épaviste retenu : réforme économique ou technique, cochée « ( X ) » sur les rapports de réforme. */
+    @Test
+    void laReformeRetenueEstLue() throws IOException {
+        assertThat(extraire("C_rapport1_plus de 20000.pdf").getTypeReforme()).isEqualTo(TypeReforme.TECHNIQUE);
+        assertThat(extraire("C_rapport2_plus de 20000.pdf").getTypeReforme()).isEqualTo(TypeReforme.ECONOMIQUE);
+        assertThat(extraire("C_rapport5_plus de 20000.pdf").getTypeReforme()).isEqualTo(TypeReforme.TECHNIQUE);
+        assertThat(extraire("A_rapport1_CLASSIQUE_2026.pdf").getTypeReforme()).isNull();
     }
 
     /** La page 1 peut lister plusieurs zones (« 7 : Arriere », « 8 : Avant ») : toutes sont lues. */

@@ -90,6 +90,32 @@ class ControleCoherenceServiceTest {
         assertThat(controle(r, "MONTANT_EN_LETTRES").ok()).isTrue();
     }
 
+    /** « Vétusté HT » imprimée : elle se déduit du total général HT, quelle que soit la TVA. */
+    @Test
+    void vetusteHt_seDeduitDuTotalHt() {
+        RapportExtrait r = FabriqueRapportExtrait.coherentAvec(m -> m.tvaRecuperable(false).vetusteHt("100.00")
+                .indemnisation("1833.33", "mille huit cent trente trois Dirhams et trente trois centimes"));
+
+        Controle c = controle(r, "INDEMNISATION");
+
+        assertThat(c.ok()).isTrue();
+        assertThat(c.nom()).isEqualTo("Total général HT − vétusté HT = indemnisation");
+        assertThat(c.attendu()).isEqualByComparingTo("1833.33");
+    }
+
+    /** « Vétusté TTC » imprimée : elle se déduit du total général TTC. */
+    @Test
+    void vetusteTtc_seDeduitDuTotalTtc() {
+        RapportExtrait r = FabriqueRapportExtrait.coherentAvec(m -> m.tvaRecuperable(true).vetusteTtc("320.00")
+                .indemnisation("2000.00", "deux mille Dirhams"));
+
+        Controle c = controle(r, "INDEMNISATION");
+
+        assertThat(c.nom()).isEqualTo("Total général TTC − vétusté TTC = indemnisation");
+        assertThat(c.attendu()).isEqualByComparingTo("2000.00");
+        assertThat(c.ok()).isTrue();
+    }
+
     @Test
     void reforme_indemnisationEgaleValeurVenaleMoinsEpave() {
         RapportExtrait r = FabriqueRapportExtrait.coherentAvec(m -> m.reforme("80000.00", "23000.00")

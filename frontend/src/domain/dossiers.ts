@@ -169,7 +169,7 @@ export type DossierModification = Pick<DossierDetail,
   "version" | "typeProcedure" | "cabinet" | "expert" | "compagnie" | "refSinistre" | "dateSinistre" | "dateMission"
   | "dateExpertise" | "dateAvantReparation" | "dateEnCoursTravaux" | "dateApresTravaux" | "dateRapport" | "lieuRapport"
   | "natureContrat" | "natureEvenement" | "zonesChoc" | "reparateur" | "accordReparateur" | "assure" | "adversaire"
-  | "vehicule" | "vetusteTtc" | "depannage" | "valeurNeuf" | "valeurAssuree" | "valeurVenale" | "valeurEpave"
+  | "vehicule" | "vetusteTtc" | "vetusteHt" | "depannage" | "typeReforme" | "epavisteNom" | "epavisteVille" | "valeurNeuf" | "valeurAssuree" | "valeurVenale" | "valeurEpave"
   | "tvaRecuperable" | "montantIndemnisation" | "montantLettres" | "commentaire"> & {
   /** Prix unitaires corrigés des lignes de la page 2 (lignes au prix incohérent). */
   prixLignes: { ordre: number; prixUnitaire: number | null }[];

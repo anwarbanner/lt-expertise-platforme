@@ -74,10 +74,15 @@ public class ServiceExports {
                         .ligne("Véhicule : n° de série", d.vehicule().numeroSerie())
                         .ligne("Véhicule : kilométrage", d.vehicule().kilometrage());
             }
-            fiche.ligne("Total général TTC", ttc(d.totalGeneral())).ligne("Vétusté TTC", d.vetusteTtc())
+            boolean vetusteHt = d.vetusteHt() != null;
+            fiche.ligne("Total général HT", ht(d.totalGeneral())).ligne("Total général TTC", ttc(d.totalGeneral()))
+                    .ligne(vetusteHt ? "Vétusté HT" : "Vétusté TTC", vetusteHt ? d.vetusteHt() : d.vetusteTtc())
                     .ligne("Dépannage", d.depannage()).ligne("TVA récupérable", Libelles.ouiNon(d.tvaRecuperable()))
                     .ligne("Valeur à neuf", d.valeurNeuf()).ligne("Valeur vénale", d.valeurVenale())
-                    .ligne("Valeur épave", d.valeurEpave()).ligne("Montant de l'indemnisation", d.montantIndemnisation())
+                    .ligne("Valeur épave", d.valeurEpave())
+                    .ligne("Réforme (épaviste retenu)", Libelles.reforme(d.typeReforme()))
+                    .ligne("Épaviste retenu : nom", d.epavisteNom()).ligne("Épaviste retenu : ville", d.epavisteVille())
+                    .ligne("Montant de l'indemnisation", d.montantIndemnisation())
                     .ligne("Montant en lettres", d.montantLettres()).ligne("Commentaire de l'expert", d.commentaire())
                     .ligne("Validé par", d.validePar()).ligne("Validé le", d.valideLe());
             fiche.ajuster();

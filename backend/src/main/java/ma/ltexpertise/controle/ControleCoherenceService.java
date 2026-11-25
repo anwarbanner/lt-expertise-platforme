@@ -24,7 +24,9 @@ import java.util.function.Function;
  * <ul>
  *   <li>pour chaque poste de main d'œuvre : heures × taux = HT et HT + TVA = TTC ;</li>
  *   <li>somme des postes = totaux main d'œuvre et fournitures, MO + fournitures = total général (HT, TVA, TTC) ;</li>
- *   <li>total général − vétusté = indemnisation, sur le TTC, ou sur le HT si la TVA est récupérable (P5) ;
+ *   <li>total général − vétusté = indemnisation. La vétusté imprimée fixe la méthode : « Vétusté HT » se déduit
+ *       du total général HT, « Vétusté TTC » du total général TTC ; sans vétusté lue, le HT si la TVA est
+ *       récupérable (P5), sinon le TTC ;
  *       pour un rapport de réforme, valeur vénale − valeur épave ;</li>
  *   <li>page 2 = page 1 : main d'œuvre TTC, et fournitures (la colonne « Total » de la page 2 est vétusté déduite) ;</li>
  *   <li>montant en lettres = montant en chiffres ;</li>
@@ -172,18 +174,30 @@ public class ControleCoherenceService {
         if (r.getNatureRapport() == NatureRapport.REFORME) {
             return "Réforme : valeur vénale − valeur épave = indemnisation";
         }
-        return Boolean.TRUE.equals(r.getTvaRecuperable())
-                ? "TVA récupérable : total général HT − vétusté = indemnisation"
-                : "Total général TTC − vétusté = indemnisation";
+        return calculSurHt(r) ? "Total général HT − vétusté HT = indemnisation"
+                : "Total général TTC − vétusté TTC = indemnisation";
     }
 
     private static BigDecimal indemnisationAttendue(RapportExtrait r) {
         if (r.getNatureRapport() == NatureRapport.REFORME) {
             return difference(r.getValeurVenale(), r.getValeurEpave());
         }
-        BigDecimal base = lire(r.getTotalGeneral(),
-                Boolean.TRUE.equals(r.getTvaRecuperable()) ? Montants::getHt : Montants::getTtc);
+        BigDecimal base = lire(r.getTotalGeneral(), calculSurHt(r) ? Montants::getHt : Montants::getTtc);
         return difference(base, zeroSiAbsent(r.getVetuste()));
+    }
+
+    /**
+     * L'indemnisation se calcule-t-elle sur le HT ? Oui si le rapport imprime « Vétusté HT », non s'il imprime
+     * « Vétusté TTC » ; sans vétusté, selon la récupérabilité de la TVA (P5).
+     */
+    public static boolean calculSurHt(RapportExtrait r) {
+        if (r.getVetusteHt() != null) {
+            return true;
+        }
+        if (r.getVetusteTtc() != null) {
+            return false;
+        }
+        return Boolean.TRUE.equals(r.getTvaRecuperable());
     }
 
     /** Libellé du poste tel qu'imprimé dans le tableau « Évaluation des dommages ». */

@@ -84,6 +84,45 @@ describe("écran de vérification", () => {
     expect(JSON.parse(serveur.history.put[0].data).zonesChoc).toEqual([1, 7, 8]);
   });
 
+  it("la vétusté est TTC ou HT : le type choisi change le champ envoyé et le calcul affiché", async () => {
+    ouvrir({ vetusteTtc: 320 });
+
+    fireEvent.click(await screen.findByRole("button", { name: /Conclusion/ }));
+    expect(screen.getByText("Indemnisation = total général TTC − vétusté TTC")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText(/Type de vétusté/), { target: { value: "HT" } });
+    expect((screen.getByLabelText(/^Vétusté HT/) as HTMLInputElement).value).toBe("320");
+    expect(screen.getByText("Indemnisation = total général HT − vétusté HT")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+    await waitFor(() => expect(serveur.history.put).toHaveLength(1));
+    const envoi = JSON.parse(serveur.history.put[0].data);
+    expect(envoi.vetusteHt).toBe(320);
+    expect(envoi.vetusteTtc).toBeNull();
+  });
+
+  it("l’épaviste retenu (réforme économique ou technique) se saisit sur un rapport de réforme", async () => {
+    ouvrir({ natureRapport: "REFORME", typeReforme: "TECHNIQUE" });
+
+    fireEvent.click(await screen.findByRole("button", { name: /Conclusion/ }));
+    const reforme = screen.getByLabelText(/Épaviste retenu : réforme/) as HTMLSelectElement;
+    expect(reforme.value).toBe("TECHNIQUE");
+    fireEvent.change(reforme, { target: { value: "ECONOMIQUE" } });
+    fireEvent.change(screen.getByLabelText(/Épaviste retenu : nom/), { target: { value: "EPAVISTE TEST" } });
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+    await waitFor(() => expect(serveur.history.put).toHaveLength(1));
+    const envoi = JSON.parse(serveur.history.put[0].data);
+    expect(envoi.typeReforme).toBe("ECONOMIQUE");
+    expect(envoi.epavisteNom).toBe("EPAVISTE TEST");
+  });
+
+  it("pas de champ épaviste sur un rapport qui n’est pas de réforme", async () => {
+    ouvrir();
+
+    fireEvent.click(await screen.findByRole("button", { name: /Conclusion/ }));
+    expect(screen.queryByLabelText(/Épaviste retenu/)).toBeNull();
+  });
+
   it("présente les valeurs clés du commentaire 2026", async () => {
     ouvrir({
       commentaire: "- LA VALEUR A NEUF DU VEHICULE A ETE RETENUE SUR LA BASE DU PRIX CATALOGUE DISPONIBLE : 519000.00",

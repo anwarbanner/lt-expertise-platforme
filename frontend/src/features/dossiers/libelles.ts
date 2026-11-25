@@ -12,6 +12,10 @@ export const ENERGIES: readonly (readonly [string, string])[] = [
   ["DIESEL", "Diesel"], ["ESSENCE", "Essence"], ["HYBRIDE", "Hybride"], ["ELECTRIQUE", "Électrique"], ["AUTRE", "Autre"],
 ];
 export const OUI_NON: readonly (readonly [string, string])[] = [["true", "Oui"], ["false", "Non"]];
+/** Vétusté imprimée : « Vétusté TTC » ou « Vétusté HT », elle fixe le calcul de l'indemnisation. */
+export const BASES_VETUSTE: readonly (readonly [string, string])[] = [["TTC", "Vétusté TTC"], ["HT", "Vétusté HT"]];
+/** Épaviste retenu : réforme économique ou technique (rapports de réforme). */
+export const REFORMES: readonly (readonly [string, string])[] = [["ECONOMIQUE", "Réforme économique"], ["TECHNIQUE", "Réforme technique"]];
 export const NATURES: Record<string, string> = { DEFINITIF: "Définitif", NON_DEFINITIF: "Non définitif", REFORME: "Réforme" };
 
 export function libelle(liste: readonly (readonly [string, string])[], valeur: string | null | undefined): string | null {

@@ -19,7 +19,7 @@ import { DetailPieces } from "./components/DetailPieces";
 import { usePdfOriginal } from "./components/PdfViewer";
 import { ValeursCommentaire } from "./components/ValeursCommentaire";
 import { VehicleDiagram } from "./components/VehicleDiagram";
-import { CONTRATS, ENERGIES, EVENEMENTS, libelle, libelleAction, NATURES, PROCEDURES } from "./libelles";
+import { CONTRATS, ENERGIES, EVENEMENTS, libelle, libelleAction, NATURES, PROCEDURES, REFORMES } from "./libelles";
 
 /** Fiche complète d'un dossier (F8), PDF original (P1) et historique des actions (P7). */
 export default function DossierDetailPage() {
@@ -108,7 +108,8 @@ export default function DossierDetailPage() {
       <InfoCard title="Conclusion"><div className="info-grid">
         <Info label={d.vetusteHt !== null ? "Vétusté HT" : "Vétusté TTC"} value={montant(d.vetusteHt ?? d.vetusteTtc)} /><Info label="Dépannage" value={montant(d.depannage)} />
         <Info label="Valeur à neuf" value={montant(d.valeurNeuf)} /><Info label="Valeur vénale" value={montant(d.valeurVenale)} /><Info label="Valeur épave" value={montant(d.valeurEpave)} />
-        <Info label="Réforme" value={d.typeReforme === "ECONOMIQUE" ? "Économique" : d.typeReforme === "TECHNIQUE" ? "Technique" : "Non"} />
+        <Info label="Épaviste retenu" value={libelle(REFORMES, d.typeReforme) ?? (d.natureRapport === "REFORME" ? null : "Pas de réforme")} />
+        {d.natureRapport === "REFORME" && <Info label="Épaviste" value={[d.epavisteNom, d.epavisteVille].filter(Boolean).join(" · ") || null} />}
       </div>{d.montantLettres && <div className="indemnity"><span>Montant en lettres</span><strong>{montant(d.montantIndemnisation)}</strong><p>{d.montantLettres}</p></div>}
         {d.commentaire && <p className="lecture-seule">{d.commentaire}</p>}</InfoCard>
       {d.commentaire && <InfoCard title="Valeurs clés du commentaire"><ValeursCommentaire valeurs={d.valeursCommentaire} /></InfoCard>}

@@ -362,7 +362,7 @@ public class RapportExtrait {
         return vetusteHt;
     }
 
-    /** Vétusté à déduire, telle qu'imprimée (TTC, ou HT si la TVA est récupérable). */
+    /** Vétusté à déduire, telle qu'imprimée : « Vétusté TTC » ou « Vétusté HT » (jamais les deux). */
     public BigDecimal getVetuste() {
         return vetusteTtc != null ? vetusteTtc : vetusteHt;
     }
