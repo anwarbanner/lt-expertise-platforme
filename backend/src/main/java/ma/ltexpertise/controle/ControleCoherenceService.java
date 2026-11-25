@@ -28,7 +28,8 @@ import java.util.function.Function;
  *       du total général HT, « Vétusté TTC » du total général TTC ; sans vétusté lue, le HT si la TVA est
  *       récupérable (P5), sinon le TTC ;
  *       pour un rapport de réforme, valeur vénale − valeur épave ;</li>
- *   <li>page 2 = page 1 : main d'œuvre TTC, et fournitures (la colonne « Total » de la page 2 est vétusté déduite) ;</li>
+ *   <li>page 2 = page 1 : main d'œuvre TTC, et fournitures (la colonne « Total » de la page 2 est TTC, vétusté
+ *       déduite : une « Vétusté HT » y est retirée avec la TVA des lignes qui la portent) ;</li>
  *   <li>montant en lettres = montant en chiffres ;</li>
  *   <li>chaque ligne de la page 2 : quantité × prix × (1 + TVA) × (1 − vétusté) = total. Sur les rapports réels,
  *       ce contrôle signale les prix unitaires faux imprimés par le logiciel de l'expert (prix négatifs ou sans
@@ -87,7 +88,7 @@ public class ControleCoherenceService {
                 lire(r.getTotalMainOeuvre(), Montants::getTtc), toleranceSomme));
         controles.add(controle("PAGE2_FOURNITURES", "Page 2 = page 1 : fournitures TTC − vétusté",
                 sommeDe(r.getLignesDetail(), LigneDetailExtraite::getTotalFourniture),
-                difference(lire(r.getTotalFournitures(), Montants::getTtc), zeroSiAbsent(r.getVetuste())), toleranceSomme));
+                difference(lire(r.getTotalFournitures(), Montants::getTtc), vetusteTtcFournitures(r)), toleranceSomme));
 
         controles.add(controleLignesPrix(r.getLignesDetail()));
         return controles;
@@ -184,6 +185,36 @@ public class ControleCoherenceService {
         }
         BigDecimal base = lire(r.getTotalGeneral(), calculSurHt(r) ? Montants::getHt : Montants::getTtc);
         return difference(base, zeroSiAbsent(r.getVetuste()));
+    }
+
+    /**
+     * Vétusté retirée des fournitures dans la colonne « Total » de la page 2, TVA comprise. Une « Vétusté HT »
+     * imprimée y est déduite avec la TVA des lignes qui la portent : × 1,2 pour des pièces à 20 % (258202-2988,
+     * 258202-0519), telle quelle pour des pièces à 0 % (258202-2427). Le taux se lit sur ces lignes à partir de
+     * leur total, juste même quand le prix unitaire imprimé est faux : vétusté TTC = total × v / (1 − v), et
+     * vétusté HT = vétusté TTC / (1 + TVA). Sans ligne à vétusté exploitable, la vétusté est retirée telle quelle.
+     */
+    static BigDecimal vetusteTtcFournitures(RapportExtrait r) {
+        if (r.getVetusteTtc() != null || r.getVetusteHt() == null) {
+            return zeroSiAbsent(r.getVetusteTtc());
+        }
+        BigDecimal cent = BigDecimal.valueOf(100);
+        BigDecimal vetusteHt = BigDecimal.ZERO;
+        BigDecimal vetusteTtc = BigDecimal.ZERO;
+        for (LigneDetailExtraite l : r.getLignesDetail()) {
+            BigDecimal v = l.getVetustePct();
+            if (v == null || l.getTvaPct() == null || l.getTotalFourniture() == null
+                    || v.signum() <= 0 || v.compareTo(cent) >= 0) {
+                continue;
+            }
+            BigDecimal ttc = l.getTotalFourniture().multiply(v).divide(cent.subtract(v), 10, RoundingMode.HALF_UP);
+            vetusteTtc = vetusteTtc.add(ttc);
+            vetusteHt = vetusteHt.add(ttc.divide(BigDecimal.ONE.add(l.getTvaPct().divide(cent)), 10, RoundingMode.HALF_UP));
+        }
+        if (vetusteHt.signum() == 0) {
+            return r.getVetusteHt();
+        }
+        return r.getVetusteHt().multiply(vetusteTtc).divide(vetusteHt, 2, RoundingMode.HALF_UP);
     }
 
     /**

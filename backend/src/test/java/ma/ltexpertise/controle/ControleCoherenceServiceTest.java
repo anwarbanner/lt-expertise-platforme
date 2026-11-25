@@ -103,6 +103,40 @@ class ControleCoherenceServiceTest {
         assertThat(c.attendu()).isEqualByComparingTo("1833.33");
     }
 
+    /**
+     * « Vétusté HT » sur des pièces à 20 % : la colonne « Total » de la page 2 la retire TVA comprise (rapport réel
+     * 258202-2988 : 24 296,40 − 7 978,80 × 1,2 = 14 721,84). Pièce 250 HT, vétusté 40 % : 100 HT, 120 TTC.
+     */
+    @Test
+    void vetusteHt_surPiecesA20_page2DeduitLaVetusteTtc() {
+        RapportExtrait r = FabriqueRapportExtrait.coherentAvec(m -> m.vetusteHt("100.00")
+                .ajouterLigneFourniture("1", "250.00", "20.00", "40.00", "180.00"));
+
+        assertThat(ControleCoherenceService.vetusteTtcFournitures(r)).isEqualByComparingTo("120.00");
+    }
+
+    /** « Vétusté HT » sur des pièces à 0 % (rapport réel 258202-2427) : retirée telle quelle à la page 2. */
+    @Test
+    void vetusteHt_surPiecesA0_page2DeduitLaVetusteTelleQuelle() {
+        RapportExtrait r = FabriqueRapportExtrait.coherentAvec(m -> m.vetusteHt("2100.00")
+                .ajouterLigneFourniture("1", "3000.00", "0.00", "70.00", "900.00"));
+
+        assertThat(ControleCoherenceService.vetusteTtcFournitures(r)).isEqualByComparingTo("2100.00");
+    }
+
+    /** Le contrôle de la page 2 retire la vétusté HT convertie : 736 − 120 = 616. */
+    @Test
+    void vetusteHt_controlePage2() {
+        RapportExtrait r = FabriqueRapportExtrait.coherentAvec(m -> m.vetusteHt("100.00")
+                .indemnisation("1833.33", "mille huit cent trente trois Dirhams et trente trois centimes")
+                .totalDerniereLignePage2("0.00", "864.00")
+                .ajouterLigneFourniture("1", "250.00", "20.00", "40.00", "-120.00"));
+
+        Controle c = controle(r, "PAGE2_FOURNITURES");
+
+        assertThat(c.obtenu()).isEqualByComparingTo("616.00");
+    }
+
     /** « Vétusté TTC » imprimée : elle se déduit du total général TTC. */
     @Test
     void vetusteTtc_seDeduitDuTotalTtc() {
